@@ -117,6 +117,16 @@ class ChainMetrics:
         Returns:
             str: The string representation of the object.
         """
+        self.error_registry.sort(key=lambda error: error["timestamp"], reverse=True)
+        self.error_registry.reverse()
+        self.task_completion.sort(key=lambda task: task["timestamp"], reverse=True)
+        self.task_completion.reverse()
+        self.resource_allocation.sort(key=lambda resource: resource["timestamp"], reverse=True)
+        self.resource_allocation.reverse()
+        self.metrics.sort(key=lambda metric: metric["timestamp"], reverse=True)
+        self.metrics.reverse()
+        self.status = ""
+        self.timestamp = datetime.now()
         return f"ChainMetrics(chain_id={self.chain_id}, execution_time={self.execution_time}, task_completion={self.task_completion}, resource_allocation={self.resource_allocation}, error_registry={self.error_registry})"
 
     def __repr__(self) -> str:
@@ -126,6 +136,8 @@ class ChainMetrics:
         Returns:
             str: The string representation of the object.
         """
+        self.error_registry.sort(key=lambda error: error["timestamp"], reverse=True)
+        self.error_registry.reverse()
         return str(self)
 
     def __eq__(self, other: object) -> bool:

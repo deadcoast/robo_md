@@ -275,7 +275,7 @@ class ReorganizationResult:
         self.status = status
         self.details = details
         self.timestamp = timestamp
-        
+
     def __str__(self):
         return f"{self.status}: {self.details}"
 

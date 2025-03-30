@@ -295,6 +295,10 @@ class TaskRegistryManager:
         Returns:
             TaskRegistration: The generated task context.
         """
+        self.logger.info(f"Generating task context for task {task.id}.")
+        self.logger.debug(f"Task details: {task}")
+        self.logger.debug(f"Task context: {task.context}")
+        self.logger.debug(f"Task registration: {task.registration}")
         return TaskRegistration(task_id=task.id, task=task)
 
     def _log_task_completion(self, task: Task) -> None:
@@ -331,6 +335,7 @@ class TaskRegistryManager:
         Returns:
             str: The current timestamp.
         """
+        self.logger.info("Getting current timestamp.")
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -341,6 +346,8 @@ class TaskRegistryManager:
         Returns:
             List[Task]: The list of active tasks.
         """
+        self.active_tasks.sort(key=lambda task: task.timestamp, reverse=True)
+        self.active_tasks.reverse()
         return self.active_tasks
 
     def get_completion_log(self) -> List[Task]:
@@ -350,6 +357,8 @@ class TaskRegistryManager:
         Returns:
             List[Task]: The list of completed tasks.
         """
+        self.completion_log.sort(key=lambda task: task.timestamp, reverse=True)
+        self.completion_log.reverse()
         return self.completion_log
 
     def get_error_log(self) -> List[Dict[str, Any]]:
@@ -359,6 +368,8 @@ class TaskRegistryManager:
         Returns:
             List[Dict[str, Any]]: The list of error logs.
         """
+        self.error_log.sort(key=lambda log: log["timestamp"], reverse=True)
+        self.error_log.reverse()
         return self.error_log
 
     def get_task_registry(self) -> Dict[str, Dict[str, Any]]:
@@ -368,6 +379,8 @@ class TaskRegistryManager:
         Returns:
             Dict[str, Dict[str, Any]]: The task registry.
         """
+        self.task_registry.sort(key=lambda task: task.timestamp, reverse=True)
+        self.task_registry.reverse()
         return self.task_registry
 
     def get_task_status(self, task_id: str) -> str:
@@ -400,6 +413,8 @@ class TaskRegistryManager:
         Returns:
             List[Dict[str, Any]]: The log of the task.
         """
+        self.task_registry.get(task_id, {}).get("log", []).sort(key=lambda log: log["timestamp"], reverse=True)
+        self.task_registry.get(task_id, {}).get("log", []).reverse()
         return self.task_registry.get(task_id, {}).get("log", [])
 
     def get_task_errors(self, task_id: str) -> List[Dict[str, Any]]:
@@ -413,6 +428,8 @@ class TaskRegistryManager:
         Returns:
             List[Dict[str, Any]]: The errors of the task.
         """
+        self.task_registry.get(task_id, {}).get("errors", []).sort(key=lambda error: error["timestamp"], reverse=True)
+        self.task_registry.get(task_id, {}).get("errors", []).reverse()
         return self.task_registry.get(task_id, {}).get("errors", [])
 
     def get_task_metrics(self, task_id: str) -> Dict[str, Any]:
@@ -426,6 +443,8 @@ class TaskRegistryManager:
         Returns:
             Dict[str, Any]: The metrics of the task.
         """
+        self.task_registry.get(task_id, {}).get("metrics", {}).sort(key=lambda metric: metric["timestamp"], reverse=True)
+        self.task_registry.get(task_id, {}).get("metrics", {}).reverse()
         return self.task_registry.get(task_id, {}).get("metrics", {})
 
     def get_task_progress(self, task_id: str) -> Dict[str, Any]:
@@ -439,6 +458,8 @@ class TaskRegistryManager:
         Returns:
             Dict[str, Any]: The progress of the task.
         """
+        self.task_registry.get(task_id, {}).get("progress", {}).sort(key=lambda progress: progress["timestamp"], reverse=True)
+        self.task_registry.get(task_id, {}).get("progress", {}).reverse()
         return self.task_registry.get(task_id, {}).get("progress", {})
 
     def get_task_type(self, task_id: str) -> str:
@@ -452,6 +473,9 @@ class TaskRegistryManager:
         Returns:
             str: The type of the task.
         """
+        self.logger.info(f"Getting task type for task {task_id}.")
+        self.task_registry.get(task_id, {}).get("type", "Unknown").sort(key=lambda type: type["timestamp"], reverse=True)
+        self.task_registry.get(task_id, {}).get("type", "Unknown").reverse()
         return self.task_registry.get(task_id, {}).get("type", "Unknown")
 
     def get_task_weight(self, task_id: str) -> float:
@@ -465,6 +489,9 @@ class TaskRegistryManager:
         Returns:
             float: The weight of the task.
         """
+        self.logger.info(f"Getting task weight for task {task_id}.")
+        self.task_registry.get(task_id, {}).get("weight", 0.0).sort(key=lambda weight: weight["timestamp"], reverse=True)
+        self.task_registry.get(task_id, {}).get("weight", 0.0).reverse()
         return self.task_registry.get(task_id, {}).get("weight", 0.0)
 
     def add_task(self, task: Task) -> None:
@@ -475,6 +502,7 @@ class TaskRegistryManager:
             self: The instance of the TaskRegistryManager.
             task (Task): The task to add.
         """
+        self.logger.info(f"Adding task {task.id} to pending queue.")
         try:
             self.pending_queue.put_nowait(task)
             # Register the task in the task registry
@@ -515,6 +543,7 @@ class TaskRegistryManager:
             current_step (str): The current step description.
             total_steps (int, optional): The total number of steps. Defaults to 0.
         """
+        self.logger.info(f"Updating task {task_id} progress: {percent_complete}% - {current_step}")
         if task_id in self.task_registry:
             self.task_registry[task_id]["progress"] = {
                 "percent_complete": max(0, min(100, percent_complete)),  # Ensure between 0-100
@@ -533,6 +562,7 @@ class TaskRegistryManager:
             task_id (str): The ID of the task.
             result (Any, optional): The result of the task. Defaults to None.
         """
+        self.logger.info(f"Marking task {task_id} as completed.")
         # Find the task in active tasks
         for task in self.active_tasks:
             if task.id == task_id:
@@ -547,3 +577,39 @@ class TaskRegistryManager:
                     if result is not None:
                         self.task_registry[task_id]["result"] = result
                 break
+        self.logger.info(f"Marked task {task_id} as completed.")
+        self._log_task_completion(task)
+
+        # Remove the task from active tasks
+        self.active_tasks = [task for task in self.active_tasks if task.id != task_id]
+        self.logger.info(f"Removed task {task_id} from active tasks.")
+
+        # Remove the task from pending queue
+        self.pending_queue = [task for task in self.pending_queue if task.id != task_id]
+        self.logger.info(f"Removed task {task_id} from pending queue.")
+
+        # Remove the task from task registry
+        if task_id in self.task_registry:
+            del self.task_registry[task_id]
+            self.logger.info(f"Removed task {task_id} from task registry.")
+
+        # Remove the task from error log
+        self.error_log = [log for log in self.error_log if log["task"] != task_id]
+        self.logger.info(f"Removed task {task_id} from error log.")
+
+        # Remove the task from completion log
+        self.completion_log = [log for log in self.completion_log if log.id != task_id]
+        self.logger.info(f"Removed task {task_id} from completion log.")
+
+        # Remove the task from active tasks
+        self.active_tasks = [task for task in self.active_tasks if task.id != task_id]
+        self.logger.info(f"Removed task {task_id} from active tasks.")
+
+        # Remove the task from pending queue
+        self.pending_queue = [task for task in self.pending_queue if task.id != task_id]
+        self.logger.info(f"Removed task {task_id} from pending queue.")
+
+        # Remove the task from task registry
+        if task_id in self.task_registry:
+            del self.task_registry[task_id]
+            self.logger.info(f"Removed task {task_id} from task registry.")

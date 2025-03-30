@@ -1,8 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 
-from src.ProcessingConfig import ProcessingConfig
-from src.ProcessingResult import ProcessingResult
 from src.AnalyzerCore import ResultAnalyzer
 from src.ValidationCore import ValidationEngine
 from src.MetricsCore import MetricsComputer
@@ -79,6 +77,94 @@ class ExecutionResult:
     status: Optional[str] = None
     error: Optional[str] = None
 
+@dataclass
+class ProcessingStatus:
+    sequence_id: str
+    processing_phase: str
+    completion_metrics: Dict[str, float]
+    validation_status: ValidationStatus
+    error_log: List[ProcessingError] = field(default_factory=list)
+    context: Dict[str, Any] = field(default_factory=dict)
+
+class Iterator:
+    def __init__(self, context: Dict[str, Any]):
+        self.context = context
+        self.keys = list(context.keys())
+        self.index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index >= len(self.keys):
+            raise StopIteration
+        key = self.keys[self.index]
+        self.index += 1
+        return key
+
+    def __len__(self):
+        return len(self.context)
+
+
+@dataclass
+class ProcessingResult:
+    """
+    _summary_
+
+    _extended_summary_
+    """
+    def __init__(self, result):
+        self.result = result
+        self.status = ProcessingStatus()
+        self.error_log = []
+        self.context = {}
+
+    def __str__(self) -> str:
+        return str(self.result) + "\n" + str(self.status) + "\n" + str(self.error_log) + "\n" + str(self.context)
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ProcessingResult):
+            return self.result == other.result and self.status == other.status and self.error_log == other.error_log and self.context == other.context
+        return False
+
+    def __ne__(self, other) -> bool:
+        return not self == other
+
+    def __hash__(self) -> int:
+        return hash((self.result, self.status, self.error_log, self.context))
+
+    def __len__(self) -> int:
+        return len(self.context)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.context)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.context
+
+    def __getitem__(self, key: str) -> Optional[Any]:
+        return self.context.get(key)
+
+    def set(self, key: str, value: Any) -> None:
+        self.context[key] = value
+
+    def add_error(self, error: ProcessingError) -> None:
+        self.error_log.append(error)
+
+    def get_error_log(self) -> List[ProcessingError]:
+        return self.error_log
+
+    def get_status(self) -> ProcessingStatus:
+        return self.status
+
+    def get_result(self) -> Any:
+        return self.result
+
+    def get_context(self) -> Dict[str, Any]:
+        return self.context
 
 class ResultProcessor:
     def __init__(self, config: ProcessingConfig):
@@ -129,35 +215,3 @@ class ProcessingStatus:
     completion_metrics: Dict[str, float]
     validation_status: ValidationStatus
     error_log: List[ProcessingError] = field(default_factory=list)
-
-class ProcessingResult:
-    """
-    _summary_
-
-    _extended_summary_
-    """
-    def __init__(self, result):
-        self.result = result
-        self.status = ProcessingStatus()
-        self.error_log = []
-
-    def get(self, key: str) -> Optional[Any]:
-        return self.context.get(key)
-
-    def set(self, key: str, value: Any) -> None:
-        self.context[key] = value
-
-    def add_error(self, error: ProcessingError) -> None:
-        self.error_log.append(error)
-
-    def get_error_log(self) -> List[ProcessingError]:
-        return self.error_log
-
-    def get_status(self) -> ProcessingStatus:
-        return self.status
-
-    def get_result(self) -> Any:
-        return self.result
-
-    def get_context(self) -> Dict[str, Any]:
-        return self.context
