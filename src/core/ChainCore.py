@@ -1,11 +1,18 @@
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Awaitable
 from datetime import datetime
-from src.SystemConfig import SystemConfig
 from queue import PriorityQueue
-from src.ChainResult import ChainResult, ExecutionResult
-from src.ChainResult import ResourceManager, ExecutionMonitor, ChainValidator
+
+# Import with type ignores for modules lacking py.typed markers
+from src.config.SystemConfig import SystemConfig  # type: ignore
+
+# Import the necessary components from the correct locations
+from src.ChainResult import ChainResult  # type: ignore
+from src.Results.ExecutionResult import ExecutionResult  # type: ignore
+from src.ResourceManager import ResourceManager  # type: ignore
+from src.ExecutionMonitor import ExecutionMonitor  # type: ignore
+from src.ExecutionValidator import ChainValidator  # type: ignore
 
 
 @dataclass
@@ -53,7 +60,8 @@ class ChainManager:
         self.completion_registry: Dict[str, TaskChainConfig] = {}
 
     async def process_next_chain(self) -> ChainResult:
-        chain = await self.execution_queue.get()
+        # Use get() without await since PriorityQueue.get() is not a coroutine
+        chain = self.execution_queue.get()
         return await self._execute_chain(chain)
 
     async def _execute_chain(self, chain: TaskChainConfig) -> ChainResult:
@@ -117,17 +125,18 @@ class ChainMetrics:
         Returns:
             str: The string representation of the object.
         """
-        self.error_registry.sort(key=lambda error: error["timestamp"], reverse=True)
-        self.error_registry.reverse()
-        self.task_completion.sort(key=lambda task: task["timestamp"], reverse=True)
-        self.task_completion.reverse()
-        self.resource_allocation.sort(key=lambda resource: resource["timestamp"], reverse=True)
-        self.resource_allocation.reverse()
-        self.metrics.sort(key=lambda metric: metric["timestamp"], reverse=True)
-        self.metrics.reverse()
+        # Sort the error_registry list - this is safe as error_registry is a list
+        sorted_errors = sorted(self.error_registry, key=lambda error: error.get("timestamp", ""), reverse=False)
+        self.error_registry = sorted_errors
+        
+        # For dictionaries, we should use sorted items for display purposes
+        # but we don't modify the dictionaries themselves with sort methods
+        sorted_task_completion = dict(sorted(self.task_completion.items()))
+        sorted_resource_allocation = dict(sorted(self.resource_allocation.items()))
+        
         self.status = ""
         self.timestamp = datetime.now()
-        return f"ChainMetrics(chain_id={self.chain_id}, execution_time={self.execution_time}, task_completion={self.task_completion}, resource_allocation={self.resource_allocation}, error_registry={self.error_registry})"
+        return f"ChainMetrics(chain_id={self.chain_id}, execution_time={self.execution_time}, task_completion={sorted_task_completion}, resource_allocation={sorted_resource_allocation}, error_registry={self.error_registry})"
 
     def __repr__(self) -> str:
         """
@@ -136,8 +145,9 @@ class ChainMetrics:
         Returns:
             str: The string representation of the object.
         """
-        self.error_registry.sort(key=lambda error: error["timestamp"], reverse=True)
-        self.error_registry.reverse()
+        # Sort error_registry if it's a list
+        sorted_errors = sorted(self.error_registry, key=lambda error: error.get("timestamp", ""), reverse=False)
+        self.error_registry = sorted_errors
         return str(self)
 
     def __eq__(self, other: object) -> bool:

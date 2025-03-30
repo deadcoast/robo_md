@@ -1,13 +1,15 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Iterator as TypingIterator, TypeVar, Generic
+from types import TracebackType
 
-from src.AnalyzerCore import ResultAnalyzer
-from src.ValidationCore import ValidationEngine
-from src.MetricsCore import MetricsComputer
-from src.AnalysisInitializer import AnalysisInitializer
-from src.ExecutionCore import ExecutionCore
-from src.ResultCompiler import ResultCompiler
-from src.ValidationData import ValidationData
+# Add type annotations as comments for modules missing py.typed markers
+from src.AnalyzerCore import ResultAnalyzer  # type: ignore
+from src.ValidationCore import ValidationEngine  # type: ignore
+from src.MetricsCore import MetricsComputer  # type: ignore
+from src.AnalysisInitializer import AnalysisInitializer  # type: ignore
+from src.ExecutionCore import ExecutionCore  # type: ignore
+from src.ResultCompiler import ResultCompiler  # type: ignore
+from src.ValidationData import ValidationData  # type: ignore
 
 class ProcessingConfig:
     def __init__(self, config):
@@ -16,7 +18,13 @@ class ProcessingConfig:
 class ProcessingContext:
     def __init__(self, config: ProcessingConfig):
         self.config = config
-        self.context = {}
+        self.context: Dict[str, Any] = {}
+    def __enter__(self) -> 'ProcessingContext':
+        return self
+
+    def __exit__(self, exc_type: Optional[type], exc_val: Optional[Exception],
+                exc_tb: Optional[TracebackType]) -> None:
+        pass
 
     def get(self, key: str) -> Optional[Any]:
         return self.context.get(key)
@@ -86,23 +94,26 @@ class ProcessingStatus:
     error_log: List[ProcessingError] = field(default_factory=list)
     context: Dict[str, Any] = field(default_factory=dict)
 
-class Iterator:
-    def __init__(self, context: Dict[str, Any]):
+T = TypeVar('T')
+
+class DictIterator(Generic[T]):
+    """Custom iterator for dictionary keys"""
+    def __init__(self, context: Dict[str, T]):
         self.context = context
         self.keys = list(context.keys())
         self.index = 0
 
-    def __iter__(self):
+    def __iter__(self) -> 'DictIterator[T]':
         return self
 
-    def __next__(self):
+    def __next__(self) -> str:
         if self.index >= len(self.keys):
             raise StopIteration
         key = self.keys[self.index]
         self.index += 1
         return key
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.context)
 
 
@@ -113,11 +124,16 @@ class ProcessingResult:
 
     _extended_summary_
     """
-    def __init__(self, result):
+    def __init__(self, result: Any):
         self.result = result
-        self.status = ProcessingStatus()
-        self.error_log = []
-        self.context = {}
+        self.status = ProcessingStatus(
+            sequence_id="",
+            processing_phase="",
+            completion_metrics={},
+            validation_status=ValidationStatus(is_valid=False, validation_score=0.0)
+        )
+        self.error_log: List[ProcessingError] = []
+        self.context: Dict[str, Any] = {}
 
     def __str__(self) -> str:
         return str(self.result) + "\n" + str(self.status) + "\n" + str(self.error_log) + "\n" + str(self.context)
@@ -139,7 +155,7 @@ class ProcessingResult:
     def __len__(self) -> int:
         return len(self.context)
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> TypingIterator[str]:
         return iter(self.context)
 
     def __contains__(self, key: str) -> bool:
@@ -179,12 +195,26 @@ class ResultProcessor:
 
         return self._compile_results(analysis, validation, metrics)
 
+    def _compile_results(self, analysis: Any, validation: Any, metrics: Any) -> ProcessingResult:
+        """Compile results from analysis, validation and metrics calculations."""
+        # Implementation would depend on your specific requirements
+        result = ProcessingResult(analysis)
+        result.set("validation", validation)
+        result.set("metrics", metrics)
+        return result
+
 
 class ProcessingEngine:
     def __init__(self):
         self.initializer = AnalysisInitializer()
         self.executor = ExecutionCore()
         self.compiler = ResultCompiler()
+
+    def _compute_execution_status(self, result: Any) -> str:
+        """Compute the execution status based on the result."""
+        if not hasattr(result, 'is_valid') or not result.is_valid:
+            return "FAILED"
+        return "COMPLETED"
 
     async def execute_processing(self, data: ValidationData) -> ExecutionResult:
         try:
@@ -201,17 +231,10 @@ class ProcessingEngine:
             return ExecutionResult(
                 success=final_result.is_valid,
                 metrics=final_result.metrics,
-                status=self._compute_status(final_result),
+                status=self._compute_execution_status(final_result),
             )
 
         except ProcessingError as e:
             return ExecutionResult(success=False, error=str(e), status="FAILED")
 
 
-@dataclass
-class ProcessingStatus:
-    sequence_id: str
-    processing_phase: str
-    completion_metrics: Dict[str, float]
-    validation_status: ValidationStatus
-    error_log: List[ProcessingError] = field(default_factory=list)

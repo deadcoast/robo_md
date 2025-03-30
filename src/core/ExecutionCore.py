@@ -2,7 +2,7 @@ from typing import Dict
 
 from dataclasses import dataclass, field
 
-from src.EngineConfig import SystemConfig
+from src.config.EngineConfig import SystemConfig
 from src.ExecutionValidator import ExecutionValidator
 from src.ResourceManager import ResourceManager
 from src.ExecutionMonitor import ExecutionMonitor
