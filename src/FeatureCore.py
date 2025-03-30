@@ -1,3 +1,36 @@
+import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List
+from numpy import np
+import torch
+import spacy
+from hdbscan import HDBSCAN
+from sklearn.decomposition import LatentDirichletAllocation
+
+from src.VaultProcessingError import VaultProcessingError
+
+
+class FeatureGenerationError(Exception):
+    """Exception raised when there's an error in feature generation."""
+    pass
+
+
+class AnalysisError(Exception):
+    """Exception raised when there's an error during analysis."""
+    pass
+
+
+@dataclass
+class AnalysisResult:
+    """Class for storing the results of feature analysis."""
+    clusters: Any
+    topics: Any
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass
 class SystemConfig:
     """
@@ -10,6 +43,7 @@ class SystemConfig:
         processing_mode (str): The processing mode to use. Defaults to "CUDA_ENABLED".
         error_tolerance (float): The error tolerance value. Defaults to 0.85.
     """
+
     max_threads: int = 8
     batch_size: int = 1000
     buffer_size: int = 2048 * 1024  # 2MB
@@ -95,7 +129,7 @@ class MarkdownProcessor:
 
         except Exception as e:
             self.logger.error(f"Vault processing error: {str(e)}")
-            raise VaultProcessingError(f"Failed to process vault: {str(e)}")
+            raise VaultProcessingError(f"Failed to process vault: {str(e)}") from e
 
     async def _process_file(self, file_path: Path) -> Dict[str, Any]:
         """

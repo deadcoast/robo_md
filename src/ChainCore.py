@@ -1,11 +1,11 @@
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict, Any
+from datetime import datetime
 from src.SystemConfig import SystemConfig
 from queue import PriorityQueue
-from src.ChainMetrics import ChainMetrics
-from src.ChainResult import ChainResult
-from src.ChainResult import ExecutionResult
+from src.ChainResult import ChainResult, ExecutionResult
+from src.ChainResult import ResourceManager, ExecutionMonitor, ChainValidator
 
 
 @dataclass
@@ -14,7 +14,6 @@ class TaskChainConfig:
     A class for configuring task chains.
 
     Args:
-        self: The instance of the TaskChainConfig.
         chain_id (str): The ID of the task chain.
         priority (int): The priority of the task chain.
         dependencies (List[str]): A list of dependencies for the task chain.
@@ -49,50 +48,27 @@ class ChainManager:
         process_next_chain: Process the next task chain in the queue.
     """
     def __init__(self, config: SystemConfig):
-        self.active_chains = []
-        self.execution_queue = PriorityQueue()
-        self.completion_registry = {}
+        self.active_chains: List[TaskChainConfig] = []
+        self.execution_queue: PriorityQueue[TaskChainConfig] = PriorityQueue()
+        self.completion_registry: Dict[str, TaskChainConfig] = {}
 
     async def process_next_chain(self) -> ChainResult:
         chain = await self.execution_queue.get()
         return await self._execute_chain(chain)
 
+    async def _execute_chain(self, chain: TaskChainConfig) -> ChainResult:
+        """Execute a chain with the given configuration.
 
-class ChainExecutor:
-    """
-    A class for executing task chains.
+        Args:
+            chain: The task chain configuration to execute
 
-    Args:
-        self: The instance of the ChainExecutor.
-
-    Attributes:
-        validator (ChainValidator): The chain validator.
-        resource_manager (ResourceManager): The resource manager.
-        monitor (ExecutionMonitor): The execution monitor.
-
-    Methods:
-        execute_chain: Execute a task chain.
-    """
-    def __init__(self):
-        self.validator = ChainValidator()
-        self.resource_manager = ResourceManager()
-        self.monitor = ExecutionMonitor()
-
-    async def execute_chain(self, chain_config: TaskChainConfig) -> ExecutionResult:
-        try:
-            # Initialize chain context
-            context = await self._prepare_chain_context(chain_config)
-
-            # Execute with monitoring
-            with self.monitor.track_chain():
-                result = await self._process_chain(context)
-
-            return ChainResult(
-                success=True, metrics=self._compute_chain_metrics(result)
-            )
-
-        except Exception as e:
-            return ChainResult(success=False, error=str(e))
+        Returns:
+            The result of the chain execution
+        """
+        # Implementation would go here
+        executor = ChainExecutor()
+        result = await executor.execute_chain(chain)
+        return ChainResult(success=result.success, metrics=result.metrics)
 
 
 @dataclass
@@ -120,3 +96,157 @@ class ChainMetrics:
     task_completion: Dict[str, float]
     resource_allocation: Dict[str, float]
     error_registry: List[str] = field(default_factory=list)
+    metrics: Dict[str, Any] = field(default_factory=dict)
+    status: str = ""
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    def __post_init__(self) -> None:
+        self.error_registry = []
+        self.task_completion = {}
+        self.resource_allocation = {}
+        self.metrics = {}
+        self.execution_time = 0.0
+        self.status = ""
+        self.timestamp = datetime.now()
+        self.chain_id = ""
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the object.
+
+        Returns:
+            str: The string representation of the object.
+        """
+        return f"ChainMetrics(chain_id={self.chain_id}, execution_time={self.execution_time}, task_completion={self.task_completion}, resource_allocation={self.resource_allocation}, error_registry={self.error_registry})"
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the object.
+
+        Returns:
+            str: The string representation of the object.
+        """
+        return str(self)
+
+    def __eq__(self, other: object) -> bool:
+        """
+            Checks if the object is equal to another ChainMetrics object.
+
+        Returns:
+            bool: True if the objects are equal, False otherwise.
+
+        Args:
+            self: The object to compare.
+            other (ChainMetrics): The other object to compare against.
+        """
+
+        if not isinstance(other, ChainMetrics):
+            return False
+        return (
+            self.chain_id == other.chain_id and
+            self.execution_time == other.execution_time and
+            self.task_completion == other.task_completion and
+            self.resource_allocation == other.resource_allocation and
+            self.error_registry == other.error_registry
+        )
+
+    def __ne__(self, other: object) -> bool:
+        """
+        Checks if the object is not equal to another ChainMetrics object.
+
+        Returns:
+            bool: True if the objects are not equal, False otherwise.
+        """
+        return not self.__eq__(other)
+
+
+class ChainExecutor:
+    """
+    A class for executing task chains.
+
+    Args:
+        self: The instance of the ChainExecutor.
+
+    Attributes:
+        validator (ChainValidator): The chain validator.
+        resource_manager (ResourceManager): The resource manager.
+        monitor (ExecutionMonitor): The execution monitor.
+
+    Methods:
+        execute_chain: Execute a task chain.
+    """
+    def __init__(self):
+        self.validator = ChainValidator()
+        self.resource_manager = ResourceManager()
+        self.monitor = ExecutionMonitor()
+
+    async def execute_chain(self, chain_config: TaskChainConfig) -> ExecutionResult:
+        """
+        Executes the chain with the given chain configuration and returns the execution result.
+
+        Returns:
+            ExecutionResult: The result of the chain execution.
+
+        Args:
+            self: The current instance of the ChainCore class.
+            chain_config (TaskChainConfig): The configuration for the chain execution.
+
+        Raises:
+            Exception: If an error occurs during the chain execution.
+        """
+
+        try:
+            # Initialize chain context
+            context = await self._prepare_chain_context(chain_config)
+
+            # Execute with monitoring
+            with self.monitor.track_chain():
+                result = await self._process_chain(context)
+
+            return ChainResult(
+                success=True, metrics=self._compute_chain_metrics(result)
+            )
+
+        except Exception as e:
+            return ChainResult(success=False, error=str(e))
+
+    async def _prepare_chain_context(self, chain_config: TaskChainConfig) -> Dict[str, Any]:
+        """Prepare the execution context for a chain.
+
+        Args:
+            chain_config: The configuration for the chain
+
+        Returns:
+            A dictionary containing the execution context
+        """
+        # Implementation would go here
+        return {"chain_id": chain_config.chain_id}
+
+    async def _process_chain(self, context: Dict[str, Any]) -> Any:
+        """Process a chain with the given context.
+
+        Args:
+            context: The execution context
+
+        Returns:
+            The result of processing the chain
+        """
+        # Implementation would go here
+        return {"processed": True}
+
+    def _compute_chain_metrics(self, result: Any) -> 'ChainMetrics':
+        """Compute metrics for a chain execution.
+
+        Args:
+            result: The result of the chain execution
+
+        Returns:
+            Metrics for the chain execution
+        """
+        # Implementation would go here
+        return ChainMetrics(
+            chain_id="sample",
+            execution_time=0.0,
+            task_completion={},
+            resource_allocation={}
+        )

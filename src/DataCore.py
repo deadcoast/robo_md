@@ -1,16 +1,65 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, TypeVar, cast
+from typing import Any, Dict, Optional, Union, TypeVar, cast
+import ast
 
 import pandas as pd
 import numpy as np
+import torch
 from pyarrow import timestamp
-from safetensors import torch
-from torch.distributed.checkpoint import metadata
+from safetensors.torch import save_file, load_file
 from torchgen.utils import FileManager
 
 # Type aliases for clarity
 DataFrame = TypeVar('DataFrame', bound='pd.DataFrame')
 NDArray = TypeVar('NDArray', bound='np.ndarray')
+
+
+def save_tensor_dict(tensor_dict: Dict[str, torch.Tensor], file_path: Union[str, Path]) -> Dict[str, Any]:
+    """
+    Save a dictionary of tensors to a file using safetensors format.
+
+    This function provides a safer and more efficient alternative to PyTorch's
+    native save function, ensuring tensors are stored in a secure format.
+
+    Args:
+        tensor_dict: Dictionary mapping names to torch tensors
+        file_path: Path where the tensors will be saved
+
+    Returns:
+        Dictionary containing metadata about the saved tensors
+    """
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+
+    # Ensure the parent directory exists
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Save tensors using safetensors format and return the metadata
+    return save_file(tensor_dict, str(file_path))
+
+
+def load_tensor_dict(file_path: Union[str, Path]) -> Dict[str, torch.Tensor]:
+    """
+    Load tensors from a safetensors file.
+
+    This function provides a safer and more efficient alternative to PyTorch's
+    native load function, ensuring tensors are loaded securely.
+
+    Args:
+        file_path: Path to the safetensors file
+
+    Returns:
+        Dictionary mapping names to loaded tensors
+    """
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+
+    # Ensure the file exists
+    if not file_path.exists():
+        raise FileNotFoundError(f"Tensor file not found at {file_path}")
+
+    # Load tensors from safetensors format and return them
+    return load_file(str(file_path))
 
 
 class DataFrameProcessor:
@@ -84,10 +133,10 @@ class NumpyProcessor:
     def __init__(self) -> None:
         self.data: Optional[NDArray] = None
         self.processed: bool = False
-        
+
     def generate_matrices(self, df: DataFrame) -> NDArray:
         """Generate matrices from DataFrame.
-        
+
         :param df: Input DataFrame to convert to matrices
         :type df: DataFrame
         :return: Generated matrices as NumPy array
@@ -118,10 +167,10 @@ class ProcessedData:
     :type metadata: dict
     """
 
-    def __init__(self, dataframe: DataFrame, matrices: NDArray, metadata: Dict[str, Any]) -> None:
+    def __init__(self, dataframe: DataFrame, matrices: NDArray, tensor_metadata: Dict[str, Any]) -> None:
         self.processed_content: DataFrame = dataframe
         self.matrices: NDArray = matrices
-        self.metadata: Dict[str, Any] = metadata
+        self.tensor_metadata: Dict[str, Any] = tensor_metadata
         self.timestamp = timestamp.now()
 
 
@@ -199,21 +248,21 @@ class DataHandler:
         # Ensure file_manager is initialized
         if self.file_manager is None:
             self.file_manager = FileManager()
-        
+
         # Ensure df_processor is initialized
         if self.df_processor is None:
             self.df_processor = DataFrameProcessor()
-            
+
         # Ensure numpy_engine is initialized
         if self.numpy_engine is None:
             self.numpy_engine = NumpyProcessor()
-            
+
         if isinstance(data_source, Path):
             data = await self.file_manager.read_file(data_source)
         else:
             data = data_source
             if isinstance(data, str):
-                data = eval(data)
+                data = ast.literal_eval(data)
                 print(data)
                 print(type(data))
                 print(data[0])

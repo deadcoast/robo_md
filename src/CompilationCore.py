@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 
-from typing import Dict
-from numpy.f2py.crackfortran import include_paths
-from pip._internal.cli.cmdoptions import debug_mode
-from torch.utils.cpp_extension import include_paths
-from typing import List
+from typing import Dict, List
+# Removed unused imports:
+# from numpy.f2py.crackfortran import include_paths
+# from pip._internal.cli.cmdoptions import debug_mode
+# from torch.utils.cpp_extension import include_paths
 
 
 class SystemAnalyzer:
@@ -621,7 +621,8 @@ class CompilationEngine:
             with CompilationContext(context):
                 system_scan = await self.scanner.analyze(data)
                 report = await self.generator.compile(system_scan)
-                verification = await self.verifier.validate(report)
+                # Using _ prefix to mark intentionally unused variables
+                _verification = await self.verifier.validate(report)
                 self.report = report
                 self.metrics = self.verifier.metrics
                 self.status = self.verifier.status
@@ -829,11 +830,11 @@ class FinalizationEngine:
             if not verification.is_valid:
                 raise SystemStateError("Invalid system state detected")
 
-            # Final compilation
-            compilation = await self.compiler.compile_final_report()
+            # Final compilation - results are not used directly but have side effects
+            _ = await self.compiler.compile_final_report()
 
-            # State archival
-            archival = await self.archiver.archive_state()
+            # State archival - results are not used directly but have side effects
+            _ = await self.archiver.archive_state()
 
             return FinalResult()
 
@@ -917,14 +918,14 @@ class TerminationEngine:
             if not verification.is_valid:
                 raise TerminationError("Final state verification failed")
 
-            # Resource cleanup
-            cleanup_result = await self.cleanup.execute_cleanup()
+            # Resource cleanup - results are not used directly but have side effects
+            _ = await self.cleanup.execute_cleanup()
 
-            # State archival
-            archive_result = await self.archiver.archive_final_state()
+            # State archival - results are not used directly but have side effects
+            _ = await self.archiver.archive_final_state()
 
             return TerminationResult()
 
-        except TerminationError as e:
-
+        except TerminationError:
+            # Exception details are not needed
             return TerminationResult()

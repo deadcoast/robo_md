@@ -1,10 +1,11 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+import numpy as np
+import torch
 from sklearn.preprocessing import Normalizer
-from typing import List, Dict, Any
-
 from transformers import BertTokenizer
 
 from OptimizedCore import NLPCore
@@ -31,15 +32,15 @@ class ProgressTracker:
         self.task_status = {}
         self.error_log = []
 
-    def update_status(self, task_id, status):
+    def update_status(self, task_id: str, status: str) -> None:
         self.task_status[task_id] = status
 
-    def log_error(self, error_code, task_id):
+    def log_error(self, error_code: str, task_id: str) -> None:
         self.error_log.append(
             {"code": error_code, "task": task_id, "timestamp": self.get_timestamp()}
         )
 
-    def get_timestamp(self):
+    def get_timestamp(self) -> float:
         """
         Provides functionality to retrieve the current timestamp.
 
@@ -114,19 +115,17 @@ class MetaExtractor:
     :type metadata: dict
     """
 
-    def __init__(self):
-        self.source = None
-        self.format = None
-        self.metadata = {}
+    def __init__(self) -> None:
+        self.source: Optional[str] = None
+        self.format: Optional[str] = None
+        self.metadata: Dict[str, Any] = {}
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
         self.logger.propagate = False
         self.logger.info("MetaExtractor initialized.")
 
-    pass
-
-    def extract(self, parsed):
+    def extract(self, parsed: Dict[str, Any]) -> Dict[str, Any]:
         """
         This method processes the parsed input data and extracts relevant
         information based on the implementation logic.
@@ -377,11 +376,11 @@ class BatchData:
     """
 
     def __init__(
-        self, data: List[Any], batch_size: int = 1, metadata: Dict[str, Any] = None
-    ):
+        self, data: List[Any], batch_size: int = 1, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
         self.data = data
         self.batch_size = batch_size
-        self.metadata = metadata if metadata else {}
+        self.metadata = metadata or {}
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
@@ -410,7 +409,7 @@ class FeatureMatrix:
     :type num_samples: int
     """
 
-    def __init__(self, data: List[List[float]], feature_names: List[str] = None):
+    def __init__(self, data: List[List[float]], feature_names: Optional[List[str]] = None) -> None:
         self.data = data
         self.feature_names = feature_names
         self.num_features = len(feature_names) if feature_names else 0
@@ -477,16 +476,24 @@ class FeatureProcessor:
         :rtype: FeatureMatrix
         """
         global embeddings, meta_features
-        if not isinstance(content_batch, BatchData):
+        # Initialize variables to avoid undefined name errors
+        embeddings: np.ndarray = np.array([])
+        meta_features: Dict[str, Any] = {}
 
+        if not isinstance(content_batch, BatchData):
+            # Handle non-BatchData input
             nlp_features = self.nlp_core.process(content_batch)
             embeddings = self.embedding_generator.encode(nlp_features)
             meta_features = self.meta_feature_extractor.extract(content_batch)
+        else:
+            # Handle BatchData input
+            nlp_features = self.nlp_core.process(content_batch.items)
+            embeddings = self.embedding_generator.encode(nlp_features)
+            meta_features = self.meta_feature_extractor.extract(content_batch.metadata)
+
         return self.merge_features(embeddings, meta_features)
 
-    pass
-
-    def merge_features(self, embeddings, meta_features):
+    def merge_features(self, embeddings: np.ndarray, meta_features: Dict[str, Any]) -> np.ndarray:
         """
         Merges input features by integrating embeddings and meta_features. This
         operation combines the provided embedding features with additional
@@ -501,15 +508,82 @@ class FeatureProcessor:
         :return: Unified feature set that combines embeddings and meta_features,
             producing a single integrated structure useful for downstream tasks.
         """
-        merged_features = [
+        [
             embedding + meta_feature
             for embedding, meta_feature in zip(embeddings, meta_features)
         ]
 
 
 class BatchMetrics:
-    pass
+    token_count: int
+    progress_percentage: float
+    batch_completion: float
+    batch_start_time: float
+    batch_end_time: float
+    batch_id: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    processed_count: int = 0
+    success_rate: float = 0.0
+    error_count: int = 0
+    execution_time_ms: int = 0
+    errors: List[str] = field(default_factory=list)
 
+    def update(self, metrics: Dict[str, Any]) -> None:
+        self.processed_count += metrics.get("processed_count", 0)
+        self.success_rate = metrics.get("success_rate", 0.0)
+        self.error_count = metrics.get("error_count", 0)
+        self.execution_time_ms = metrics.get("execution_time_ms", 0)
+        self.errors.extend(metrics.get("errors", []))
+        self.metadata.update(metrics.get("metadata", {}))
+        self.batch_id = metrics.get("batch_id")
+        self.token_count = metrics.get("token_count", 0)
+        self.progress_percentage = metrics.get("progress_percentage", 0.0)
+        self.batch_completion = metrics.get("batch_completion", 0.0)
+        self.batch_start_time = metrics.get("batch_start_time", 0.0)
+        self.batch_end_time = metrics.get("batch_end_time", 0.0)
+
+    def __str__(self) -> str:
+        return f"BatchMetrics(token_count={self.token_count}, progress_percentage={self.progress_percentage}, batch_completion={self.batch_completion}, batch_start_time={self.batch_start_time}, batch_end_time={self.batch_end_time}, batch_id={self.batch_id}, metadata={self.metadata}, processed_count={self.processed_count}, success_rate={self.success_rate}, error_count={self.error_count}, execution_time_ms={self.execution_time_ms}, errors={self.errors})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, BatchMetrics):
+            return False
+        return (
+            self.token_count == other.token_count and
+            self.progress_percentage == other.progress_percentage and
+            self.batch_completion == other.batch_completion and
+            self.batch_start_time == other.batch_start_time and
+            self.batch_end_time == other.batch_end_time and
+            self.batch_id == other.batch_id and
+            self.metadata == other.metadata and
+            self.processed_count == other.processed_count and
+            self.success_rate == other.success_rate and
+            self.error_count == other.error_count and
+            self.execution_time_ms == other.execution_time_ms and
+            self.errors == other.errors
+        )
+
+    def __ne__(self, other: Any) -> bool:
+        return not self == other
+
+    def __hash__(self) -> int:
+        return hash((
+            self.token_count,
+            self.progress_percentage,
+            self.batch_completion,
+            self.batch_start_time,
+            self.batch_end_time,
+            self.batch_id,
+            self.metadata,
+            self.processed_count,
+            self.success_rate,
+            self.error_count,
+            self.execution_time_ms,
+            self.errors
+        ))
 
 @dataclass
 class FeatureGenerationStats:
@@ -1002,7 +1076,7 @@ class ReorgMetrics:
     Holds metrics and statistics related to data reorganization.
 
     This class serves as a container for attributes that track and store
-    information regarding the reorganization process in a system. The purpose 
+    information regarding the reorganization process in a system. The purpose
     is to provide organized access to metrics that could be used for analysis,
     logging, or performance measurement during the reorganization of data.
 
@@ -1010,13 +1084,13 @@ class ReorgMetrics:
     :type reorg_count: int
     :ivar last_reorg_time: The timestamp of the last reorganization event.
     :type last_reorg_time: float
-    :ivar reorg_duration: The duration of the last reorganization process in 
+    :ivar reorg_duration: The duration of the last reorganization process in
         seconds.
     :type reorg_duration: float
-    :ivar success_rate: The proportion of successful reorganizations over the 
+    :ivar success_rate: The proportion of successful reorganizations over the
         total attempts.
     :type success_rate: float
-    :ivar pending_tasks: The number of tasks yet to be completed for the current 
+    :ivar pending_tasks: The number of tasks yet to be completed for the current
         reorganization.
     :type pending_tasks: int
     """

@@ -1,3 +1,38 @@
+import asyncio
+import logging
+import spacy
+import torch
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Dict, Any
+from numpy import np
+from hdbscan import HDBSCAN
+from sklearn.decomposition import LatentDirichletAllocation
+
+
+class VaultProcessingError(Exception):
+    """Exception raised when there's an error processing the vault."""
+    pass
+
+
+class FeatureGenerationError(Exception):
+    """Exception raised when there's an error in feature generation."""
+    pass
+
+
+class AnalysisError(Exception):
+    """Exception raised when there's an error during analysis."""
+    pass
+
+
+@dataclass
+class AnalysisResult:
+    """Class for storing the results of feature analysis."""
+    clusters: Any
+    topics: Any
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
 @dataclass
 class SystemConfig:
     """
