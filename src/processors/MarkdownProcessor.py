@@ -28,6 +28,13 @@ class MarkdownProcessingError(Exception):
             return self.message == other.message
         return False
 
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self.message)
+
+
 class MarkdownProcessor:
     def __init__(self, config: Dict[str, Any]):
         self.config = config

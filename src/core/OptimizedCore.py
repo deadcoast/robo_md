@@ -1,8 +1,7 @@
 import asyncio
 from pathlib import Path
-from typing import Any, Dict, List
-from xml.dom.minidom import Document
-
+from typing import Any, Dict, List, Optional, Union
+import logging
 import networkx as nx
 import nltk
 import numpy as np
@@ -15,8 +14,12 @@ from rich import logging, status
 from sklearn.cluster import HDBSCAN
 from sklearn.ensemble import RandomForestClassifier
 from sumy.summarizers.lex_rank import LexRankSummarizer
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.nlp.stemmers import Stemmer
 from torch.onnx._internal.fx._pass import AnalysisResult
 from transformers import AutoModel, AutoTokenizer, pipeline
+from transformers.pipelines import SummarizationPipeline
 
 from FeatureCore import (
     AnalyticsEngine,
@@ -81,10 +84,10 @@ class OptimizedStructure:
         self.config = config
 
         self.graph = nx.DiGraph()
-        self.summaries = []
-        self.redundancies = []
-        self.metadata = {}
-        self.stats = {}
+        self.summaries: List[Dict[str, Any]] = []
+        self.redundancies: List[Dict[str, Any]] = []
+        self.metadata: Dict[str, Any] = {}
+        self.stats: Dict[str, Any] = {}
         self.timestamp = timestamp("ms")
         self.id = None
         self.type = None
@@ -100,8 +103,8 @@ class OptimizedStructure:
         self.source = None
         self.target = None
         self.error = None
-        self.stats = None
-        self.metadata = None
+        self.stats = {}
+        self.metadata = {}
         self.success = True
         self.error = None
 
@@ -167,8 +170,9 @@ class StructureOptimizer:
     :type summarizer: transformers.pipelines.Pipeline
     """
 
-    def __init(self, config: SystemConfig):
-        self.logger = logging.RichHandler(__name__)
+    def __init__(self, config: SystemConfig):
+        # Standard logging setup instead of incorrect RichHandler usage
+        self.logger = logging.getLogger(__name__)
         self.config = config
         self.graph = nx.DiGraph()
         self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
@@ -200,11 +204,13 @@ class StructureOptimizer:
             self.redundancies = redundancies
             self.progress.stop()
             self.progress.update("Optimized structure generated")
-            self.progress.refresh()
+            # Remove call to refresh() which doesn't exist in Status class
 
-            return OptimizedStructure()
+            return OptimizedStructure(config=self.config)
         except Exception as e:
             self.logger.error(f"Structure optimization error: {str(e)}")
+            # Add explicit return statement for error case
+            return OptimizedStructure(config=self.config)
 
     def _build_graph(self, docs, analysis_result):
         """
@@ -383,7 +389,8 @@ class ReorganizationError(Exception):
 
 class StorageOrganizer:
     def __init__(self, config: SystemConfig):
-        self.logger = logging.RichHandler(__name__)
+        # Standard logging setup instead of incorrect RichHandler usage
+        self.logger = logging.getLogger(__name__)
         self.config = config
         self.lock = asyncio.Lock()
 
@@ -405,7 +412,9 @@ class StorageOrganizer:
                 success = await self._execute_moves(move_operations, backup_path)
 
                 if success:
-                    return ReorganizationResult()
+                    return ReorganizationResult(
+                        "success", "Vault reorganized successfully", timestamp("ms")
+                    )
                 await self._rollback(backup_path)
                 raise ReorganizationError("Failed to reorganize vault")
 
@@ -516,11 +525,11 @@ class ProcessingResult:
     :type data: Any
     """
 
-    def __init__(self, success: bool, metadata: Dict[str, Any] = None):
+    def __init__(self, success: bool, metadata: Dict[str, Any] = None, stats: Dict[str, Any] = None, error: Optional[str] = None):
         self.success = success
-        self.metadata = metadata
-        self.error = None
-        self.stats = None
+        self.metadata = metadata if metadata is not None else {}
+        self.stats = stats if stats is not None else {}
+        self.error = error
         self.timestamp = timestamp("ms")
         self.id = None
         self.type = None
@@ -765,6 +774,30 @@ class NLPCore:
             dependencies=self._extract_dependencies(doc),
             embeddings=await self._generate_embeddings(content),
         )
+
+    def _extract_tokens(self, doc) -> List[Dict[str, Any]]:
+        """
+        Extract tokens from the given spaCy document.
+
+        This method processes a spaCy Doc object and extracts tokens with their
+        associated properties such as text, lemma, part-of-speech tags, and other
+        linguistic attributes.
+
+        :param doc: A processed spaCy Doc object from which to extract tokens
+        :type doc: spacy.tokens.Doc
+        :return: A list of dictionaries, each containing information about a token
+        :rtype: List[Dict[str, Any]]
+        """
+        # Use list comprehension for better performance and readability
+        return [{
+            'text': token.text,
+            'lemma': token.lemma_,
+            'pos': token.pos_,
+            'tag': token.tag_,
+            'dep': token.dep_,
+            'is_stop': token.is_stop,
+            'is_punct': token.is_punct
+        } for token in doc]
 
     async def _generate_embeddings(self, text: str) -> torch.Tensor:
         """
@@ -1098,7 +1131,7 @@ class GraphAnalyzer:
         rankings = self.rank_calculator.compute(self.graph)
         return GraphResult(self.graph, communities, rankings)
 
-    async def _process_backlinks(self, doc):
+    async def _process_backlinks(self, doc: Document) -> None:
         """
         Processes backlinks for a given document by performing necessary operations asynchronously.
 
@@ -1110,15 +1143,14 @@ class GraphAnalyzer:
         with asynchronous support for improved performance and scalability.
 
         :param doc: Input document for which the backlinks need to be processed.
-        :type doc: Any
+        :type doc: Document
         :return: None.
         """
         await asyncio.sleep(0)
-        backlinks = doc.backlinks
-        for backlink in backlinks:
+        for backlink in doc.backlinks:
             self.graph.add_edge(backlink, doc.id)
 
-    async def _add_document_nodes(self, doc):
+    async def _add_document_nodes(self, doc: Document) -> None:
         """
         Adds document nodes to the internal structure.
 
@@ -1129,20 +1161,30 @@ class GraphAnalyzer:
 
         :param doc: The document object that contains all the necessary data to
                     extract and add nodes effectively.
-
+        :type doc: Document
         :return: None
         """
         await asyncio.sleep(0)
         self.graph.add_node(doc.id, doc=doc)
         for backlink in doc.backlinks:
-            self.graph.add_node(backlink.id, doc=backlink)
-            self.graph.add_edge(doc.id, backlink.id)
+            # backlink here is a string ID, not a Document object
+            self.graph.add_node(backlink, doc_id=backlink)
+            self.graph.add_edge(doc.id, backlink)
 
-            async def _process_documents(self, documents):
-                for doc in documents:
-                    await self._process_backlinks(doc)
-                    await self._add_document_nodes(doc)
-                    return
+    async def _process_documents(self, documents: List[Document]) -> None:
+        """
+        Process a list of documents by handling their backlinks.
+
+        This method iterates through each document in the provided list
+        and processes their backlinks asynchronously using the _process_backlinks method.
+
+        :param documents: List of document objects to process
+        :type documents: List[Document]
+        :return: None
+        """
+        for doc in documents:
+            await self._process_backlinks(doc)
+            await self._add_document_nodes(doc)
 
 
 class CommunityAnalyst:
@@ -1177,6 +1219,35 @@ class SummaryResult:
         self.total = total
         self.count = count
         self.average = average
+
+
+class Document:
+    """
+    Represents a document within the system.
+
+    This class encapsulates the data and metadata associated with a document,
+    providing a structured way to manage document information throughout the
+    application. It serves as the primary data container for document processing.
+
+    :ivar id: Unique identifier for the document.
+    :type id: str
+    :ivar content: The textual content of the document.
+    :type content: str
+    :ivar links: References or links to other related documents.
+    :type links: List[str]
+    :ivar backlinks: References from other documents that link to this document.
+    :type backlinks: List[str]
+    :ivar metadata: Additional metadata associated with the document.
+    :type metadata: Dict[str, Any]
+    """
+
+    def __init__(self, doc_id: str, content: str, links: List[str] = None,
+                 backlinks: List[str] = None, metadata: Dict[str, Any] = None):
+        self.id = doc_id
+        self.content = content
+        self.links = links or []
+        self.backlinks = backlinks or []
+        self.metadata = metadata or {}
 
 
 class DocumentSummary:
@@ -1230,11 +1301,15 @@ class SummaryGenerator:
     :type abstractive: pipeline
     """
 
-    logger = logging
+    logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self.extractive = LexRankSummarizer()
-        self.abstractive = pipeline("summarization", model="facebook/bart-large-cnn")
+        # Initialize the stemmer (English language)
+        stemmer = Stemmer("english")
+        # Create LexRank summarizer with the stemmer
+        self.extractive = LexRankSummarizer(stemmer)
+        # Initialize the transformers summarization pipeline
+        self.abstractive: SummarizationPipeline = pipeline("summarization", model="facebook/bart-large-cnn")
         self.logger.info("Summary generator initialized")
 
     async def generate_summaries(self, documents: List[Document]) -> SummaryResult:
@@ -1257,7 +1332,7 @@ class SummaryGenerator:
             average=len(documents) / len(summaries),
         )
 
-    async def _generate_extractive(self, doc):
+    async def _generate_extractive(self, doc: Document) -> str:
         """
         Generate an extractive summary for the provided document.
 
@@ -1265,18 +1340,23 @@ class SummaryGenerator:
         by selecting sentences or segments that most represent the central ideas
         of the text, based on the underlying model's computation.
 
-        :param doc: The document content to process for extractive summarization.
-                    It is expected to be a string containing the full text of
-                    the document.
-        :type doc: str
+        :param doc: The document to process for extractive summarization.
+        :type doc: Document
         :return: Extracted summary of the document content.
         :rtype: str
         """
         await asyncio.sleep(0)
-        doc = self.extractive.summarize(doc)
-        return doc
 
-    async def _generate_abstractive(self, doc):
+        # Create a parser for the document content with English tokenizer
+        parser = PlaintextParser.from_string(doc.content, Tokenizer("english"))
+
+        # Get 3 sentences for the summary
+        sentences = self.extractive(parser.document, 3)
+
+        # Join the sentences into a string and return
+        return " ".join(str(sentence) for sentence in sentences)
+
+    async def _generate_abstractive(self, doc: Document) -> str:
         """
         Generates an abstractive summary for the provided document.
 
@@ -1285,10 +1365,10 @@ class SummaryGenerator:
         for generating the desired summary.
 
         :param doc: The input document to summarize.
-        :type doc: str
+        :type doc: Document
         :return: The generated abstractive summary.
         :rtype: str
         """
         await asyncio.sleep(0)
-        doc = self.abstractive(doc, max_length=100, min_length=30, do_sample=False)
-        return doc[0]["summary_text"]
+        result = self.abstractive(doc.content, max_length=100, min_length=30, do_sample=False)
+        return result[0]["summary_text"]
