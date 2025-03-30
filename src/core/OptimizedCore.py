@@ -1,7 +1,8 @@
 import asyncio
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
 import logging
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import networkx as nx
 import nltk
 import numpy as np
@@ -10,17 +11,18 @@ import torch
 from DataCore import DataHandler
 from gensim.models import LdaModel
 from pyarrow import timestamp
-from rich import logging, status
+from rich import status
 from sklearn.cluster import HDBSCAN
 from sklearn.ensemble import RandomForestClassifier
-from sumy.summarizers.lex_rank import LexRankSummarizer
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
 from sumy.nlp.stemmers import Stemmer
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.summarizers.lex_rank import LexRankSummarizer
 from torch.onnx._internal.fx._pass import AnalysisResult
 from transformers import AutoModel, AutoTokenizer, pipeline
 from transformers.pipelines import SummarizationPipeline
 
+from analyzers.CommunityAnalyst import CommunityAnalyst
 from FeatureCore import (
     AnalyticsEngine,
     FeatureProcessor,
@@ -83,7 +85,7 @@ class OptimizedStructure:
     def __init__(self, config: SystemConfig):
         self.config = config
 
-        self.graph = nx.DiGraph()
+        self.graph: nx.DiGraph = nx.DiGraph()
         self.summaries: List[Dict[str, Any]] = []
         self.redundancies: List[Dict[str, Any]] = []
         self.metadata: Dict[str, Any] = {}
@@ -174,7 +176,7 @@ class StructureOptimizer:
         # Standard logging setup instead of incorrect RichHandler usage
         self.logger = logging.getLogger(__name__)
         self.config = config
-        self.graph = nx.DiGraph()
+        self.graph: nx.DiGraph = nx.DiGraph()
         self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
         self.lock = asyncio.Lock()
         self.progress = status.Status("Optimizing structure", spinner="dots")
@@ -525,7 +527,25 @@ class ProcessingResult:
     :type data: Any
     """
 
-    def __init__(self, success: bool, metadata: Dict[str, Any] = None, stats: Dict[str, Any] = None, error: Optional[str] = None):
+    def __init__(
+        self,
+        success: bool,
+        metadata: Dict[str, Any] = None,
+        stats: Dict[str, Any] = None,
+        error: Optional[str] = None,
+    ):
+        """
+        Initialize a new ProcessingResult object.
+
+        :param success: Indicates whether the processing was successful.
+        :type success: bool
+        :param metadata: A dictionary containing additional metadata about the processing result.
+        :type metadata: dict[str, Any]
+        :param stats: A dictionary containing statistical information about the processing result.
+        :type stats: dict[str, Any]
+        :param error: An optional error message associated with the processing result.
+        :type error: str
+        """
         self.success = success
         self.metadata = metadata if metadata is not None else {}
         self.stats = stats if stats is not None else {}
@@ -567,6 +587,12 @@ class SystemManager:
     logger = logging.getLogger(__name__)
 
     def __init__(self, config: SystemConfig):
+        """
+        Initialize a new SystemManager object.
+
+        :param config: Configuration instance used for initializing all components.
+        :type config: SystemConfig
+        """
         self.config = config
         self.di = MarkdownProcessor(config)
         self.fe = FeatureProcessor(config)
@@ -578,12 +604,32 @@ class SystemManager:
         self.progress.start()
 
     async def process_vault(self, vault_path: Path) -> ProcessingResult:
+        """
+        Process a vault of markdown files.
+
+        :param vault_path: Path to the vault directory.
+        :type vault_path: Path
+        :return: Processing result containing success status, metadata, and statistics.
+        :rtype: ProcessingResult
+        """
         try:
             # Sequential processing pipeline
-            processed_docs = await self.di.process_vault(vault_path)
-            features = await self.fe.generate_features(processed_docs)
+            processed_docs = await self.di.process_vault(
+                vault_path
+            )  # List[Dict[str, Any]]
+
+            # Ensure processed_docs is the expected List[Dict[str, Any]] format
+            typed_docs: List[Dict[str, Any]] = processed_docs
+
+            features = await self.fe.generate_features(typed_docs)
             analysis = await self.cc.analyze_features(features)
-            optimized = await self.st.optimize_structure(analysis, processed_docs)
+
+            # Cast analysis to the correct FeatureCore.AnalysisResult type
+            from FeatureCore import AnalysisResult as FCAnalysisResult
+
+            typed_analysis: FCAnalysisResult = analysis
+
+            optimized = await self.st.optimize_structure(typed_analysis, typed_docs)
             result = await self.so.reorganize_vault(optimized, vault_path)
 
             return ProcessingResult(
@@ -660,6 +706,12 @@ class EnhancedProcessor:
     logger = logging.getLogger(__name__)
 
     def __init__(self, config: SystemConfig):
+        """
+        Initialize a new EnhancedProcessor object.
+
+        :param config: Configuration instance used for initializing all components.
+        :type config: SystemConfig
+        """
         self.nlp_core = NLPCore()
         self.ml_engine = MLEngine()
         self.graph_analyzer = GraphAnalyzer()
@@ -692,6 +744,9 @@ class NLTKProcessor:
     """
 
     def __init__(self):
+        """
+        Initialize a new NLTKProcessor object.
+        """
         self.tokenizer = nltk.tokenize.WhitespaceTokenizer()
         self.stemmer = nltk.stem.PorterStemmer()
         self.lemmatizer = nltk.stem.WordNetLemmatizer()
@@ -719,6 +774,18 @@ class ProcessedContent:
     """
 
     def __init__(self, tokens, entities, dependencies, embeddings):
+        """
+        Initialize a new ProcessedContent object.
+
+        :param tokens: List of tokenized words.
+        :type tokens: list[str]
+        :param entities: List of named entities.
+        :type entities: list[str]
+        :param dependencies: List of dependency relationships.
+        :type dependencies: list[str]
+        :param embeddings: List of word embeddings.
+        :type embeddings: list[str]
+        """
         self.tokens = tokens
         self.entities = entities
         self.dependencies = dependencies
@@ -748,6 +815,9 @@ class NLPCore:
     logger = logging.getLogger(__name__)
 
     def __init__(self):
+        """
+        Initialize a new NLPCore object.
+        """
         self.spacy_model = spacy.load("en_core_web_trf")
         self.nltk_processor = NLTKProcessor()
         self.transformer = AutoModel.from_pretrained("bert-base-uncased")
@@ -789,15 +859,18 @@ class NLPCore:
         :rtype: List[Dict[str, Any]]
         """
         # Use list comprehension for better performance and readability
-        return [{
-            'text': token.text,
-            'lemma': token.lemma_,
-            'pos': token.pos_,
-            'tag': token.tag_,
-            'dep': token.dep_,
-            'is_stop': token.is_stop,
-            'is_punct': token.is_punct
-        } for token in doc]
+        return [
+            {
+                "text": token.text,
+                "lemma": token.lemma_,
+                "pos": token.pos_,
+                "tag": token.tag_,
+                "dep": token.dep_,
+                "is_stop": token.is_stop,
+                "is_punct": token.is_punct,
+            }
+            for token in doc
+        ]
 
     async def _generate_embeddings(self, text: str) -> torch.Tensor:
         """
@@ -893,6 +966,9 @@ class MLEngine:
     """
 
     def __init__(self):
+        """
+        Initialize a new MLEngine object.
+        """
         self.clustering = HDBSCAN(min_cluster_size=5, min_samples=3)
         self.topic_model = LdaModel(num_topics=20, distributed=True)
         self.classifier = RandomForestClassifier(n_estimators=100, n_jobs=-1)
@@ -965,6 +1041,14 @@ class CommunityDetection:
     """
 
     def __init__(self, graph):
+        """
+        Initialize a new CommunityDetection object.
+
+        :param graph: A representation of the graph on which the detection operation
+            will be performed. Expected structure or data type must adhere to what
+            the function is designed to handle.
+        :type graph: Graph
+        """
         self.graph = graph
         self.communities = None
         self.community_dict = None
@@ -1006,6 +1090,16 @@ class PageRankProcessor:
     """
 
     def __init__(self, graph_data, rank_threshold=0.01):
+        """
+        Initialize a new PageRankProcessor object.
+
+        :param graph_data: The input representation of the graph on which calculations
+            are to be performed. The graph should follow the expected format.
+        :type graph_data: Any
+        :param rank_threshold: A threshold value for PageRank-related filtering
+            or processing (optional).
+        :type rank_threshold: float
+        """
         self.graph_data = graph_data
         self.rank_threshold = rank_threshold
 
@@ -1057,9 +1151,21 @@ class PageRankProcessor:
         return self.community_dict
 
     def get_communities(self):
+        """
+        Get the communities detected in the graph.
+
+        :return: The detected communities.
+        :rtype: Any
+        """
         return self.communities
 
     def get_community_dict(self):
+        """
+        Get the community dictionary.
+
+        :return: The community dictionary.
+        :rtype: Any
+        """
         return self.community_dict
 
 
@@ -1085,6 +1191,16 @@ class GraphResult:
         communities: List[List[int]],
         rankings: Dict[int, float],
     ):
+        """
+        Initialize a new GraphResult object.
+
+        :param graph: The graph on which computations or analyses were performed.
+        :type graph: nx.DiGraph
+        :param communities: The detected communities in the graph.
+        :type communities: List[List[int]]
+        :param rankings: The computed rankings for nodes or edges.
+        :type rankings: Dict[int, float]
+        """
         self.graph = graph
         self.communities = communities
         self.rankings = rankings
@@ -1118,7 +1234,21 @@ class GraphAnalyzer:
         self.community_detector = CommunityDetection()
         self.rank_calculator = PageRankProcessor()
 
-    async def build_knowledge_graph(self, documents: List[Document]) -> GraphResult:
+    async def build_knowledge_graph(self, documents: List["Document"]) -> GraphResult:
+        """
+        Build a knowledge graph from a list of documents.
+
+        This method creates a directed knowledge graph from the provided list of
+        documents by processing the relationships between them. It then analyzes
+        key properties of the graph such as community structures and node rankings.
+
+        :param documents: A list of documents from which the knowledge graph will be
+            built.
+        :type documents: List["Document"]
+        :return: A GraphResult object containing the graph, detected communities,
+            and computed rankings.
+        :rtype: GraphResult
+        """
         # Build graph structure
         await asyncio.sleep(0)
         for doc in documents:
@@ -1131,7 +1261,7 @@ class GraphAnalyzer:
         rankings = self.rank_calculator.compute(self.graph)
         return GraphResult(self.graph, communities, rankings)
 
-    async def _process_backlinks(self, doc: Document) -> None:
+    async def _process_backlinks(self, doc: "Document") -> None:
         """
         Processes backlinks for a given document by performing necessary operations asynchronously.
 
@@ -1150,7 +1280,7 @@ class GraphAnalyzer:
         for backlink in doc.backlinks:
             self.graph.add_edge(backlink, doc.id)
 
-    async def _add_document_nodes(self, doc: Document) -> None:
+    async def _add_document_nodes(self, doc: "Document") -> None:
         """
         Adds document nodes to the internal structure.
 
@@ -1171,7 +1301,7 @@ class GraphAnalyzer:
             self.graph.add_node(backlink, doc_id=backlink)
             self.graph.add_edge(doc.id, backlink)
 
-    async def _process_documents(self, documents: List[Document]) -> None:
+    async def _process_documents(self, documents: List["Document"]) -> None:
         """
         Process a list of documents by handling their backlinks.
 
@@ -1185,17 +1315,6 @@ class GraphAnalyzer:
         for doc in documents:
             await self._process_backlinks(doc)
             await self._add_document_nodes(doc)
-
-
-class CommunityAnalyst:
-    def __init__(self):
-        self.communities = None
-        self.community_dict = None
-        self.communities_dict = {
-            "communities": self.communities,
-            "community_dict": self.community_dict,
-            "communities_dict": self.community_dict,
-        }
 
 
 class SummaryResult:
@@ -1216,6 +1335,16 @@ class SummaryResult:
     """
 
     def __init__(self, total, count, average):
+        """
+        Initialize a new SummaryResult object.
+
+        :param total: The total computed during the operation.
+        :type total: float
+        :param count: The number of items that contributed to the summary.
+        :type count: int
+        :param average: The average value obtained from the summary computation.
+        :type average: float
+        """
         self.total = total
         self.count = count
         self.average = average
@@ -1241,8 +1370,28 @@ class Document:
     :type metadata: Dict[str, Any]
     """
 
-    def __init__(self, doc_id: str, content: str, links: List[str] = None,
-                 backlinks: List[str] = None, metadata: Dict[str, Any] = None):
+    def __init__(
+        self,
+        doc_id: str,
+        content: str,
+        links: Optional[List[str]] = None,
+        backlinks: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Initialize a new Document object.
+
+        :param doc_id: The unique identifier for the document.
+        :type doc_id: str
+        :param content: The textual content of the document.
+        :type content: str
+        :param links: Optional list of references or links to other documents.
+        :type links: Optional[List[str]]
+        :param backlinks: Optional list of references from other documents that link to this document.
+        :type backlinks: Optional[List[str]]
+        :param metadata: Optional dictionary containing additional metadata associated with the document.
+        :type metadata: Optional[Dict[str, Any]]
+        """
         self.id = doc_id
         self.content = content
         self.links = links or []
@@ -1268,6 +1417,16 @@ class DocumentSummary:
     """
 
     def __init__(self, doc_id, extractive, abstractive):
+        """
+        Initialize a new DocumentSummary object.
+
+        :param doc_id: The unique identifier for the document.
+        :type doc_id: str
+        :param extractive: The extractive summary of the document.
+        :type extractive: str
+        :param abstractive: The abstractive summary of the document.
+        :type abstractive: str
+        """
         self.doc_id = doc_id
         self.extractive = extractive
         self.abstractive = abstractive
@@ -1304,15 +1463,35 @@ class SummaryGenerator:
     logger = logging.getLogger(__name__)
 
     def __init__(self):
+        """
+        Initialize the SummaryGenerator.
+
+        This method initializes the stemmer and summarizer components required for
+        generating both extractive and abstractive summaries.
+        """
         # Initialize the stemmer (English language)
         stemmer = Stemmer("english")
         # Create LexRank summarizer with the stemmer
         self.extractive = LexRankSummarizer(stemmer)
         # Initialize the transformers summarization pipeline
-        self.abstractive: SummarizationPipeline = pipeline("summarization", model="facebook/bart-large-cnn")
+        self.abstractive: SummarizationPipeline = pipeline(
+            "summarization", model="facebook/bart-large-cnn"
+        )
         self.logger.info("Summary generator initialized")
 
     async def generate_summaries(self, documents: List[Document]) -> SummaryResult:
+        """
+        Generate summaries for a list of documents.
+
+        This method processes a list of documents by generating both extractive and
+        abstractive summaries for each document. The summaries are then combined into
+        a SummaryResult object, which contains the results for each document.
+
+        :param documents: A list of documents for which summaries will be generated.
+        :type documents: List[Document]
+        :return: A SummaryResult object containing the generated summaries.
+        :rtype: SummaryResult
+        """
         summaries = []
         for doc in documents:
             extractive_sum = await self._generate_extractive(doc)
@@ -1370,5 +1549,7 @@ class SummaryGenerator:
         :rtype: str
         """
         await asyncio.sleep(0)
-        result = self.abstractive(doc.content, max_length=100, min_length=30, do_sample=False)
+        result = self.abstractive(
+            doc.content, max_length=100, min_length=30, do_sample=False
+        )
         return result[0]["summary_text"]

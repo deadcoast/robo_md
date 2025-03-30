@@ -2,30 +2,31 @@ import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, List
-from numpy import np
-import torch
-import spacy
-from hdbscan import HDBSCAN
-from sklearn.decomposition import LatentDirichletAllocation
 
-from src.VaultProcessingError import VaultProcessingError
+import spacy
+import torch
+from hdbscan import HDBSCAN
+from numpy import np
+from sklearn.decomposition import LatentDirichletAllocation
 
 
 class FeatureGenerationError(Exception):
     """Exception raised when there's an error in feature generation."""
+
     pass
 
 
 class AnalysisError(Exception):
     """Exception raised when there's an error during analysis."""
+
     pass
 
 
 @dataclass
 class AnalysisResult:
     """Class for storing the results of feature analysis."""
+
     clusters: Any
     topics: Any
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -49,113 +50,6 @@ class SystemConfig:
     buffer_size: int = 2048 * 1024  # 2MB
     processing_mode: str = "CUDA_ENABLED"
     error_tolerance: float = 0.85
-
-
-class MarkdownProcessor:
-    """
-    A class for processing Markdown files.
-
-    Args:
-        config (SystemConfig): The system configuration.
-
-    Attributes:
-        config (SystemConfig): The system configuration.
-        executor (ThreadPoolExecutor): The executor for running tasks in parallel.
-        logger (logging.Logger): The logger for logging messages.
-
-    Methods:
-        process_vault: Process a vault of Markdown files and return the aggregated results.
-
-        _process_file: Process a single Markdown file and return the processed data.
-
-    Returns:
-        Dict[str, Any]: The aggregated results of processing the vault.
-
-    Raises:
-        VaultProcessingError: If there is an error processing the vault.
-
-    Raises:
-        VaultProcessingError: If there is an error processing the vault.
-    """
-
-    def __init__(self, config: SystemConfig):
-        """
-        Initialize the MarkdownProcessor.
-
-        Args:
-            self: The instance of the MarkdownProcessor.
-            config (SystemConfig): The system configuration.
-
-        Attributes:
-            config (SystemConfig): The system configuration.
-            executor (ThreadPoolExecutor): The executor for running tasks in parallel.
-            logger (logging.Logger): The logger for logging messages.
-        """
-
-        self.config = config
-        self.executor = ThreadPoolExecutor(max_workers=config.max_threads)
-        self.logger = logging.getLogger("MarkdownProcessor")
-
-    async def process_vault(self, vault_path: Path) -> Dict[str, Any]:
-        """
-        Process a vault of Markdown files and return the aggregated results.
-
-        Args:
-            self: The instance of the MarkdownProcessor.
-            vault_path (Path): The path to the vault directory.
-
-        Returns:
-            Dict[str, Any]: The aggregated results of processing the vault.
-
-        Raises:
-            VaultProcessingError: If there is an error processing the vault.
-        """
-
-        try:
-            files = list(vault_path.rglob("*.md"))
-            batches = [
-                files[i : i + self.config.batch_size]
-                for i in range(0, len(files), self.config.batch_size)
-            ]
-
-            results = []
-            for batch in batches:
-                batch_results = await asyncio.gather(
-                    *[self._process_file(file) for file in batch]
-                )
-                results.extend(batch_results)
-
-            return self._aggregate_results(results)
-
-        except Exception as e:
-            self.logger.error(f"Vault processing error: {str(e)}")
-            raise VaultProcessingError(f"Failed to process vault: {str(e)}") from e
-
-    async def _process_file(self, file_path: Path) -> Dict[str, Any]:
-        """
-        Process a single Markdown file and return the processed data.
-
-        Args:
-            self: The instance of the MarkdownProcessor.
-            file_path (Path): The path to the Markdown file.
-
-        Returns:
-            Dict[str, Any]: The processed data of the file, including path, metadata, content, and stats.
-        """
-
-        try:
-            content = await self._read_file(file_path)
-            metadata = self._extract_metadata(content)
-            normalized = self._normalize_content(content)
-            return {
-                "path": str(file_path),
-                "metadata": metadata,
-                "content": normalized,
-                "stats": self._compute_stats(normalized),
-            }
-        except Exception as e:
-            self.logger.warning(f"File processing error: {str(e)}")
-            return {"path": str(file_path), "error": str(e)}
 
 
 class FeatureProcessor:
@@ -293,6 +187,33 @@ class AnalyticsEngine:
         self.lda = LatentDirichletAllocation(
             n_components=20, random_state=42, n_jobs=config.max_threads
         )
+
+    def parallel_process(self, items, process_func, max_workers=None):
+        """
+        Process items in parallel using ThreadPoolExecutor.
+
+        Args:
+            self: The instance of the AnalyticsEngine.
+            items: Collection of items to process.
+            process_func: Function to apply to each item.
+            max_workers: Maximum number of worker threads (defaults to self.config.max_threads if None).
+
+        Returns:
+            List of results from processing each item.
+
+        Raises:
+            Exception: Any exception raised during parallel processing.
+        """
+        if max_workers is None:
+            max_workers = self.config.max_threads
+
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = list(executor.map(process_func, items))
+            return results
+        except Exception as e:
+            logging.error(f"Error in parallel processing: {str(e)}")
+            raise
 
     async def analyze_features(self, feature_matrix: np.ndarray) -> AnalysisResult:
         """

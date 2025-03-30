@@ -1,14 +1,24 @@
-import numpy as np
-from pathlib import Path
-from typing import Dict, Any
-
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict
+
+import numpy as np
 
 from src.config.EngineConfig import SystemConfig
 from src.core.NLPCore import NLPCore
 from src.DataHandler import DataHandler
-from src.ProcessingPool import ProcessingPool
 from src.MarkdownProcessor import MarkdownProcessor
+from src.ProcessingPool import ProcessingPool
+from src.processors.EnhancedProcessingError import EnhancedProcessingError
+
+
+@dataclass
+class EnhancedFeatureSet:
+    embeddings: np.ndarray
+    topic_features: np.ndarray
+    graph_features: np.ndarray
+    metadata_features: np.ndarray
+
 
 class EnhancedMarkdownProcessor(MarkdownProcessor):
     def __init__(self, config: SystemConfig):
@@ -27,7 +37,7 @@ class EnhancedMarkdownProcessor(MarkdownProcessor):
 
         except Exception as e:
             self.logger.error(f"Enhanced processing error: {str(e)}")
-            raise EnhancedProcessingError(str(e)) from e
+            raise EnhancedProcessingError(str(e), details={"error": str(e)}) from e
 
     async def _enhanced_file_processing(self, file_path: Path) -> Dict[str, Any]:
         content = await self._read_file(file_path)
@@ -42,11 +52,3 @@ class EnhancedMarkdownProcessor(MarkdownProcessor):
             "structured_data": structured_data,
             "metadata": self._extract_enhanced_metadata(content),
         }
-
-
-@dataclass
-class EnhancedFeatureSet:
-    embeddings: np.ndarray
-    topic_features: np.ndarray
-    graph_features: np.ndarray
-    metadata_features: np.ndarray

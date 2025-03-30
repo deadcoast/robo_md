@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
+from typing import Any, Dict, List
 
-from typing import Dict, List
 # Removed unused imports:
 # from numpy.f2py.crackfortran import include_paths
 # from pip._internal.cli.cmdoptions import debug_mode
@@ -21,6 +21,7 @@ class SystemAnalyzer:
     :ivar scan_in_progress: Indicates whether a scan is currently active.
     :type scan_in_progress: bool
     """
+
     def __init__(self):
         self.scan_in_progress = False
         self.scan_results = {
@@ -31,7 +32,6 @@ class SystemAnalyzer:
             "system_status": "OK",
             "system_health": "OK",
             "system_performance": "OK",
-
         }
 
     async def deep_scan(self):
@@ -58,6 +58,7 @@ class ReportCompiler:
     :ivar report_metadata: Contains metadata for the report compilation process.
     :type report_metadata: dict
     """
+
     def __init__(self):
         self.compiled_reports = []
         self.report_metadata = {
@@ -74,7 +75,6 @@ class ReportCompiler:
             "total_time": 0.0,
             "completion_percentage": 0.0,
             "task_completion": {},
-
         }
 
     async def generate(self):
@@ -101,6 +101,7 @@ class ValidationEngine:
     :ivar rules: A list of validation rules to be applied during verification.
     :type rules: list
     """
+
     def __init__(self):
         self.is_valid = True
         self.rules = []
@@ -114,6 +115,7 @@ class ValidationEngine:
         }
         self.status = "OK"
         self.error_registry = []
+
     async def verify(self):
         """
         This method is designed to perform a verification process. The specific details of what is being verified
@@ -152,11 +154,13 @@ class CompilerConfig:
         should be compiled, such as "x86", "x64", or "ARM".
     :type target_architecture: str
     """
+
     def __init__(self):
         self.optimization_level = 0
         self.include_paths = []
         self.output_directory = ""
         self.debug_mode = False
+
     pass
 
 
@@ -173,6 +177,7 @@ class CompilationResult:
         during the compilation process.
     :type messages: list[str]
     """
+
     def __init__(self, success, report, metrics):
         self.success = success
         self.report = report
@@ -181,6 +186,7 @@ class CompilationResult:
         self.error_log = []
         self.warning_log = []
         self.error_registry = []
+
     pass
 
 
@@ -202,12 +208,13 @@ class CompilationCore:
     :ivar validator: Instance of `ValidationEngine` used for validating compiled reports.
     :type validator: ValidationEngine
     """
+
     def __init__(self, config: CompilerConfig):
         self.analyzer = SystemAnalyzer()
         self.compiler = ReportCompiler()
         self.validator = ValidationEngine()
         self.config = config
-        self.report = None
+        self.report: Dict[str, Any] = {}
 
     async def compile_system_report(self) -> None:
         analysis = await self.analyzer.deep_scan()
@@ -226,7 +233,6 @@ class CompilationCore:
         self.report["report_errors"] = self.compiler.report_errors
         self.report["report_warnings"] = self.compiler.report_warnings
         self.report["report_metrics"] = self.compiler.report_metrics
-
 
         return self._merge_results(analysis, compilation, validation)
 
@@ -257,9 +263,10 @@ class SystemScanner:
     allowing integration in applications requiring non-blocking I/O operations
     while handling system scanning and analysis tasks.
     """
+
     def __init__(self):
         self.config = CompilerConfig()
-        self.report = None
+        self.report: Dict[str, Any] = {}
         self.metrics = None
         self.status = "OK"
         self.error_log = []
@@ -267,7 +274,6 @@ class SystemScanner:
         self.error_registry = []
         self.compiler = CompilationCore(self.config)
         self.report_generator = ReportGenerator()
-
 
     async def analyze(self, data):
         """
@@ -297,8 +303,8 @@ class SystemScanner:
         self.report_metrics = self.compiler.report["report_metrics"]
 
         return self.report
-    pass
 
+    pass
 
 
 class ReportGenerator:
@@ -316,9 +322,10 @@ class ReportGenerator:
     :ivar attribute2: Description of attribute2.
     :type attribute2: type
     """
+
     def __init__(self):
         self.config = CompilerConfig()
-        self.report = None
+        self.report: Dict[str, Any] = {}
         self.metrics = None
         self.status = "OK"
         self.error_log = []
@@ -338,6 +345,7 @@ class ReportGenerator:
             "failed_tasks": 0,
             "total_time": 0.0,
         }
+
     async def compile(self, system_scan):
         """
         Compiles the necessary information or data based on the provided system scan
@@ -373,6 +381,7 @@ class IntegrityVerifier:
         identified during validation.
     :type error_messages: list
     """
+
     def __init__(self):
         self.validation_rules = {}
         self.error_messages = []
@@ -410,6 +419,7 @@ class IntegrityVerifier:
             "failed_tasks": 0,
             "total_time": 0.0,
         }
+
     async def validate(self, report):
         """
         Validates the provided report data against predetermined criteria and
@@ -437,6 +447,7 @@ class IntegrityVerifier:
 
         return self.report
 
+
 class SystemData:
     """
     Represents system-related data and operations.
@@ -451,6 +462,7 @@ class SystemData:
     :ivar attribute2: Description of attribute2.
     :type attribute2: type
     """
+
     def __init__(self):
         self.config = CompilerConfig()
         self.report = None
@@ -460,6 +472,7 @@ class SystemData:
         self.warning_log = []
         self.error_registry = []
         self.compiler = CompilationCore(self.config)
+
     pass
 
 
@@ -478,6 +491,7 @@ class ExecutionResult:
     :ivar data: Contains the data or result produced by the execution, if any.
     :type data: Optional[Any]
     """
+
     def __init__(self, success, message, data=None):
         self.success = success
         self.message = message
@@ -486,6 +500,7 @@ class ExecutionResult:
         self.error_log = []
         self.warning_log = []
         self.error_registry = []
+
     pass
 
 
@@ -507,6 +522,7 @@ class CompilationError:
         occurred, if applicable.
     :type line_number: int
     """
+
     def __init__(self, message, code=None, line_number=None):
         self.message = message
         self.code = code
@@ -522,6 +538,7 @@ class CompilationError:
         self.warning_log.append(self)
         self.error_registry.append(self)
         self.error_log.append(self)
+
     pass
 
 
@@ -534,6 +551,7 @@ class CompilationContext:
     managing and maintaining a consistent state throughout the
     different stages of compilation.
     """
+
     def __init__(self, context):
         self.context = context
         self.config = CompilerConfig()
@@ -555,6 +573,15 @@ class CompilationContext:
         self.report_metrics = {
             "total_tasks": 0,
         }
+
+    def __enter__(self):
+        # Setup code that needs to run when entering the context
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Cleanup code that needs to run when exiting the context
+        pass
+
 
 class CompilationEngine:
     """
@@ -646,8 +673,8 @@ class CompilationEngine:
                 success=False,
                 message=str(e),
                 data=self.report,
-
             )
+
     async def _prepare_context(self, data):
         pass
 
@@ -666,6 +693,7 @@ class ValidationStatus:
         to the validation process.
     :type message: str
     """
+
     def __init__(self, is_valid, message):
         self.is_valid = is_valid
         self.message = message
@@ -673,6 +701,7 @@ class ValidationStatus:
         self.error_log = []
         self.warning_log = []
         self.error_registry = []
+
     pass
 
 
@@ -704,6 +733,7 @@ class CompilationStatus:
         warning_log (List[CompilationError]): A list of warning log.
         report_metadata (Dict[str, str]): A dictionary of report metadata.
     """
+
     sequence_id: str
     compilation_phase: str
     completion_metrics: Dict[str, float]
@@ -730,6 +760,7 @@ class SystemVerifier:
     Attributes:
         pass
     """
+
     pass
 
 
@@ -743,6 +774,7 @@ class FinalCompiler:
     Attributes:
         pass
     """
+
     pass
 
 
@@ -756,6 +788,7 @@ class StateArchiver:
     Attributes:
         pass
     """
+
     pass
 
 
@@ -765,37 +798,52 @@ class FinalResult:
 
     Args:
         self: The instance of the FinalResult.
+        success: Whether the finalization was successful.
+        error: Error message if finalization failed.
 
     Attributes:
-        pass
+        success: Whether the finalization was successful.
+        error: Error message if finalization failed.
     """
-    pass
+
+    def __init__(self, success=True, error=None):
+        self.success = success
+        self.error = error
+        self.status = "OK" if success else "FAILED"
 
 
-class SystemStateError:
+class SystemStateError(Exception):
     """
     A class for representing system state errors.
 
     Args:
         self: The instance of the SystemStateError.
+        message: The error message.
 
     Attributes:
-        pass
+        message: The error message.
     """
-    pass
+
+    def __init__(self, message="System state error"):
+        super().__init__(message)
+        self.message = message
 
 
-class FinalizationError:
+class FinalizationError(Exception):
     """
     A class for representing finalization errors.
 
     Args:
         self: The instance of the FinalizationError.
+        message: The error message.
 
     Attributes:
-        pass
+        message: The error message.
     """
-    pass
+
+    def __init__(self, message="Finalization error"):
+        super().__init__(message)
+        self.message = message
 
 
 class FinalizationEngine:
@@ -808,6 +856,7 @@ class FinalizationEngine:
     Attributes:
         pass
     """
+
     def __init__(self):
         self.verifier = SystemVerifier()
         self.compiler = FinalCompiler()
@@ -852,6 +901,7 @@ class FinalVerifier:
     Attributes:
         pass
     """
+
     pass
 
 
@@ -865,6 +915,7 @@ class ResourceCleanup:
     Attributes:
         pass
     """
+
     pass
 
 
@@ -874,24 +925,36 @@ class TerminationResult:
 
     Args:
         self: The instance of the TerminationResult.
+        success: Whether the termination was successful.
+        error: Error message if termination failed.
 
     Attributes:
-        pass
+        success: Whether the termination was successful.
+        error: Error message if termination failed.
+        status: The status of the termination process.
     """
-    pass
+
+    def __init__(self, success=True, error=None):
+        self.success = success
+        self.error = error
+        self.status = "OK" if success else "FAILED"
 
 
-class TerminationError:
+class TerminationError(Exception):
     """
     A class for representing errors in the termination process.
 
     Args:
         self: The instance of the TerminationError.
+        message: The error message.
 
     Attributes:
-        pass
+        message: The error message.
     """
-    pass
+
+    def __init__(self, message="Termination error"):
+        super().__init__(message)
+        self.message = message
 
 
 class TerminationEngine:
@@ -906,6 +969,7 @@ class TerminationEngine:
         cleanup (ResourceCleanup): The resource cleanup.
         archiver (StateArchiver): The state archiver.
     """
+
     def __init__(self):
         self.verifier = FinalVerifier()
         self.cleanup = ResourceCleanup()

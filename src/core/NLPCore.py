@@ -3,12 +3,15 @@ Core natural language processing functionality.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List
+
+import markdown
+import spacy
+import torch
 
 from src.config.EngineConfig import SystemConfig
-from typing import Dict, Any
-import torch
-import spacy
-import markdown
+
 
 @dataclass
 class NLPCore:
@@ -71,7 +74,9 @@ class NLPCore:
         # Placeholder for actual torch NLP processing
         pass
 
-    def _aggregate_enhanced_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _aggregate_enhanced_results(
+        self, results: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """
         Aggregates enhanced results.
 
@@ -142,4 +147,3 @@ class NLPCore:
         """
         # Placeholder for actual torch statistics extraction
         pass
-
