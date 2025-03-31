@@ -58,6 +58,7 @@ class StateManager:
         Returns:
             Optional[Any]: The state if found, otherwise None.
         """
+        self.logger.info(f"Getting state '{state_name}'.")
         return self.states.get(state_name)
 
     def remove_state(self, state_name: str) -> None:
@@ -67,6 +68,7 @@ class StateManager:
         Args:
             state_name (str): The name of the state to remove.
         """
+        self.logger.info(f"Removing state '{state_name}'.")
         if state_name in self.states:
             del self.states[state_name]
             self.logger.info(f"State '{state_name}' removed.")
@@ -81,6 +83,7 @@ class StateManager:
             state_name (str): The name of the state to save.
             filepath (Union[str, Path]): The path to save the state to.
         """
+        self.logger.info(f"Saving state '{state_name}' to '{filepath}'.")
         state = self.get_state(state_name)
         if state is None:
             self.logger.warning(f"State '{state_name}' not found.")
@@ -99,6 +102,7 @@ class StateManager:
             state_name (str): The name of the state to load.
             filepath (Union[str, Path]): The path to load the state from.
         """
+        self.logger.info(f"Loading state '{state_name}' from '{filepath}'.")
         # Load state from file
         with open(filepath, "rb") as f:
             state = pickle.load(f)
@@ -106,10 +110,30 @@ class StateManager:
         self.logger.info(f"State '{state_name}' loaded from '{filepath}'.")
 
     def __reduce__(self) -> "StateManager":
+        """
+        Returns a tuple that can be used to recreate the object.
+
+        Returns:
+            Tuple[type, tuple]: A tuple containing the object type and its arguments.
+        """
         return (StateManager, (self.states))
 
     def __getstate__(self) -> Dict[str, Any]:
+        """
+        Returns the object's state.
+
+        Returns:
+            Dict[str, Any]: The object's state.
+        """
+        self.logger.info("Getting state manager state.")
         return self.states
 
     def __setstate__(self, states: Dict[str, Any]) -> None:
+        """
+        Sets the object's state.
+
+        Args:
+            states (Dict[str, Any]): The object's state.
+        """
         self.states = states
+        self.logger.info("State manager state set.")

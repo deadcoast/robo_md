@@ -3,7 +3,11 @@ A class for managing resource allocation.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
+
+from config import SystemConfig
+from src.config.ResourceConfig import ResourceAllocation
+from src.config.TaskChainConfig import TaskChainConfig
 
 
 @dataclass
@@ -16,6 +20,7 @@ class ResourceAllocator:
         allocated_resources: Dictionary mapping resource IDs to their allocated amounts
         allocation_history: List of past allocations for auditing purposes
     """
+
     resource_id: str
     amount: float
     priority: int = 0
@@ -23,7 +28,6 @@ class ResourceAllocator:
     available_resources: Dict[str, float] = field(default_factory=dict)
     allocated_resources: Dict[str, float] = field(default_factory=dict)
     allocation_history: List[ResourceAllocation] = field(default_factory=list)
-
 
     def allocate(self, resource_id: str, amount: float, priority: int = 0) -> bool:
         """
@@ -52,9 +56,7 @@ class ResourceAllocator:
 
         # Record this allocation
         allocation = ResourceAllocation(
-            resource_id=resource_id,
-            amount=amount,
-            priority=priority
+            resource_id=resource_id, amount=amount, priority=priority
         )
         self.allocation_history.append(allocation)
 
@@ -161,4 +163,3 @@ class ResourceAllocator:
     def __setstate__(self, state: Dict[str, Any]):
         self.config = state["config"]
         self.resource_registry = state["resource_registry"]
-

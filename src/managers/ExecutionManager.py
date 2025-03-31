@@ -4,7 +4,7 @@ from src.ContinuationResult import ContinuationResult
 from src.core.ExecutionCore import ExecutionController
 from src.ExecutionMonitor import ExecutionMonitor
 from src.results.ExecutionResult import ExecutionResult
-from src.StateValidationError import StateValidationError
+from src.validators.ExecutionValidator import ExecutionValidator
 
 
 class ExecutionManager:
@@ -40,7 +40,7 @@ class ExecutionManager:
             # Validate current state
             state_valid = await self.validator.check_state()
             if not state_valid:
-                raise ExecutionValidationError("Invalid system state")
+                raise ExecutionValidator("Invalid system state")
 
             # Initialize continuation
             continuation = await self.controller.initialize_continuation()
@@ -70,7 +70,7 @@ class ExecutionManager:
             # Validate current state
             state_valid = await self.validator.check_state()
             if not state_valid:
-                raise StateValidationError("Invalid system state")
+                raise ExecutionValidator("Invalid system state")
 
             # Initialize execution
             execution = await self.controller.initialize_execution()
