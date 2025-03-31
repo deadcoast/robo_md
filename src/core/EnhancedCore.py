@@ -52,3 +52,18 @@ class EnhancedMarkdownProcessor(MarkdownProcessor):
             "structured_data": structured_data,
             "metadata": self._extract_enhanced_metadata(content),
         }
+
+    def _extract_enhanced_metadata(self, content: str) -> Dict[str, Any]:
+        """
+        _summary_
+
+        _extended_summary_
+
+        Args:
+            content (str): _description_
+
+        Returns:
+            Dict[str, Any]: _description_
+        """
+        # TODO: Implement the enhanced metadata extraction
+        pass

@@ -102,63 +102,92 @@ class AdvancedFeatureProcessor(FeatureProcessor):
         """
         Generate embeddings for the input documents.
 
+        This method creates vector representations (embeddings) of document content
+        that capture semantic meaning, allowing for similarity comparisons and
+        semantic search capabilities.
+
         Args:
             self: The instance of the AdvancedFeatureProcessor.
-            docs: The documents to generate embeddings for.
+            docs: The documents to generate embeddings for. Each document should
+                  be a dictionary with at least one of 'content' or 'title' fields.
 
         Returns:
-            List[List[float]]: The generated embeddings.
+            List[List[float]]: A list of embedding vectors, one for each input document.
+                              Each embedding is a fixed-length vector of floats.
         """
-        embeddings = []
-        embedding_size = 768  # Standard embedding dimension
-
         # Initialize logger if not already present
         if not hasattr(self, "logger"):
             self.logger = logging.getLogger(__name__)
 
+        # Set standard embedding dimension
+        embedding_size = 768
+        embeddings = []
+
+        # Load transformer model if available
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            # Use a pre-trained sentence transformer model
+            model = SentenceTransformer("all-MiniLM-L6-v2")  # Small but effective model
+            self.logger.info("Using SentenceTransformer model for embeddings")
+            using_transformer = True
+        except ImportError:
+            self.logger.warning(
+                "SentenceTransformer not available, using fallback embedding method"
+            )
+            using_transformer = False
+
+        # Process each document
         for doc in docs:
             # Extract text content from document
             text = doc.get("content", "")
             if not text and "title" in doc:
                 text = doc["title"]
+            # If still no text, use empty string with warning
+            if not text:
+                self.logger.warning("Document has no content or title for embedding")
+                text = ""
 
-            # Normalize text
-            text = text.lower()
+            # Generate embeddings based on available methods
+            if using_transformer and text:
+                try:
+                    # Generate embedding using the transformer model
+                    embedding = model.encode(text).tolist()
+                    embeddings.append(embedding)
+                    continue  # Skip fallback method if transformer succeeded
+                except Exception as e:
+                    self.logger.error(
+                        f"Error generating transformer embedding: {str(e)}"
+                    )
+                    # Continue to fallback method if transformer fails
 
-            # Generate a simple embedding based on character frequencies
-            # This is a simplified approach; in a real-world scenario, you'd use
-            # a proper embedding model like sentence-transformers or similar
-            char_freqs: Dict[str, int] = {}
-            for char in text:
-                if char in char_freqs:
-                    char_freqs[char] += 1
-                else:
-                    char_freqs[char] = 1
-
-            # Create a simple embedding vector
-            # In a real implementation, this would use a proper embedding model
-
-            # Generate a deterministic but somewhat distributed embedding
+            # Fallback method: deterministic embedding based on text features
+            self.logger.info("Using fallback embedding method")
             embedding = [0.0] * embedding_size
+
+            # Only process if we have text
             if text:
+                # Normalize text
+                text = text.lower()
+
+                # Create a simple but distributed representation
                 for i, char in enumerate(text):
-                    # Create a reproducible hash for each character position (not for security purposes)
+                    # Create a reproducible hash for each character position (not for security)
                     hash_val = int(
                         hashlib.md5(
                             f"{char}_{i}".encode(), usedforsecurity=False
                         ).hexdigest(),
                         16,
                     )
-                    # Distribute the value across the embedding
+                    # Distribute the value across the embedding vector
                     positions = [
                         hash_val % embedding_size,
                         (hash_val // 256) % embedding_size,
                         (hash_val // 65536) % embedding_size,
                     ]
                     for pos in positions:
-                        embedding[pos] += char_freqs.get(char, 0) * 0.01
-
-                # Normalize the embedding
+                        embedding[pos] += 0.01
+                # Normalize the embedding vector
                 magnitude = math.sqrt(sum(x**2 for x in embedding))
                 if magnitude > 0:
                     embedding = [x / magnitude for x in embedding]
@@ -310,9 +339,11 @@ class TaskRegistryManager:
         Returns:
             TaskRegistration: The registered task.
         """
-        task = await self.pending_queue.get()
-        self.active_tasks.append(task)
-        return self._generate_task_context(task)
+        if not self.pending_queue.empty():
+            task = await self.pending_queue.get()
+            self.active_tasks.append(task)
+            return self._generate_task_context(task)
+        return None
 
     def _generate_task_context(self, task: Task) -> TaskRegistration:
         """
@@ -339,6 +370,8 @@ class TaskRegistryManager:
             self: The instance of the TaskRegistryManager.
             task (Task): The task to log.
         """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
         self.completion_log.append(task)
         self.active_tasks.remove(task)
         self.logger.info(f"Task {task.id} completed.")
@@ -352,6 +385,8 @@ class TaskRegistryManager:
             task (Task): The task to log.
             error (Exception): The error to log.
         """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
         self.error_log.append(
             {"task": task.id, "error": str(error), "timestamp": self.get_timestamp()}
         )
@@ -365,7 +400,8 @@ class TaskRegistryManager:
         Returns:
             str: The current timestamp.
         """
-        self.logger.info("Getting current timestamp.")
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def get_active_tasks(self) -> List[Task]:
@@ -375,6 +411,10 @@ class TaskRegistryManager:
         Returns:
             List[Task]: The list of active tasks.
         """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "active_tasks"):
+            self.active_tasks = []
         self.active_tasks = sorted(
             self.active_tasks, key=lambda task: task.timestamp, reverse=False
         )
@@ -387,6 +427,10 @@ class TaskRegistryManager:
         Returns:
             List[Task]: The list of completed tasks.
         """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "completion_log"):
+            self.completion_log = []
         self.completion_log = sorted(
             self.completion_log, key=lambda task: task.timestamp, reverse=False
         )
@@ -399,6 +443,10 @@ class TaskRegistryManager:
         Returns:
             List[Dict[str, Any]]: The list of error logs.
         """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "error_log"):
+            self.error_log = []
         self.error_log.sort(key=lambda log: log["timestamp"], reverse=True)
         self.error_log.reverse()
         return self.error_log
@@ -410,8 +458,10 @@ class TaskRegistryManager:
         Returns:
             Dict[str, Dict[str, Any]]: The task registry.
         """
-        self.task_registry.sort(key=lambda task: task.timestamp, reverse=True)
-        self.task_registry.reverse()
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
         return self.task_registry
 
     def get_task_status(self, task_id: str) -> str:
@@ -425,6 +475,10 @@ class TaskRegistryManager:
         Returns:
             str: The status of the task.
         """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "active_tasks"):
+            self.active_tasks = []
         # Check active tasks first for more up-to-date status
         for task in self.active_tasks:
             if task.id == task_id:
@@ -437,6 +491,9 @@ class TaskRegistryManager:
         """
         Get the log of a task.
 
+        Retrieves the execution log for a specific task, containing
+        information about the task's processing steps and events.
+
         Args:
             self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
@@ -444,11 +501,18 @@ class TaskRegistryManager:
         Returns:
             List[Dict[str, Any]]: The log of the task.
         """
-        return self._extracted_from_get_task_errors_12(task_id, "log")
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+
+        self.logger.info(f"Getting log for task {task_id}")
+        return self.get_task_log_entries(task_id, "log")
 
     def get_task_errors(self, task_id: str) -> List[Dict[str, Any]]:
         """
         Get the errors of a task.
+
+        Retrieves any error records associated with a specific task,
+        which may include exceptions, warnings, or other error conditions.
 
         Args:
             self: The instance of the TaskRegistryManager.
@@ -457,19 +521,48 @@ class TaskRegistryManager:
         Returns:
             List[Dict[str, Any]]: The errors of the task.
         """
-        return self._extracted_from_get_task_errors_12(task_id, "errors")
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
 
-    # TODO Rename this here and in `get_task_log` and `get_task_errors`
-    def _extracted_from_get_task_errors_12(self, task_id, arg1):
-        self.task_registry.get(task_id, {}).get(arg1, []).sort(
-            key=lambda log: log["timestamp"], reverse=True
-        )
-        self.task_registry.get(task_id, {}).get(arg1, []).reverse()
-        return self.task_registry.get(task_id, {}).get(arg1, [])
+        self.logger.info(f"Getting errors for task {task_id}")
+        return self.get_task_log_entries(task_id, "errors")
+
+    def get_task_log_entries(self, task_id: str, log_type: str) -> List[Dict[str, Any]]:
+        """
+        Get log entries for a task.
+
+        Retrieves specific log entries (logs or errors) for a task,
+        sorted by timestamp in ascending order.
+
+        Args:
+            self: The instance of the TaskRegistryManager.
+            task_id (str): The ID of the task.
+            log_type (str): The type of log entries to retrieve ("log" or "errors").
+
+        Returns:
+            List[Dict[str, Any]]: The requested log entries for the task.
+        """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+            return []
+
+        # Get logs safely
+        entries = self.task_registry.get(task_id, {}).get(log_type, [])
+
+        # Sort entries by timestamp
+        if entries:
+            entries.sort(key=lambda entry: entry.get("timestamp", ""), reverse=True)
+            entries.reverse()
+
+        return entries
 
     def get_task_metrics(self, task_id: str) -> Dict[str, Any]:
         """
         Get the metrics of a task.
+
+        Retrieves performance metrics and statistics for a specific task.
 
         Args:
             self: The instance of the TaskRegistryManager.
@@ -478,12 +571,21 @@ class TaskRegistryManager:
         Returns:
             Dict[str, Any]: The metrics of the task.
         """
-        return self._update_tasks(task_id, "metrics")
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+
+        self.logger.info(f"Getting metrics for task {task_id}")
+        return self.get_task_registry_data(task_id, "metrics")
 
     def get_task_progress(self, task_id: str) -> Dict[str, Any]:
         """
         Get the progress of a task.
 
+        Retrieves the current progress status for a specific task, including
+        percentage complete, current step, and time information.
+
         Args:
             self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
@@ -491,30 +593,49 @@ class TaskRegistryManager:
         Returns:
             Dict[str, Any]: The progress of the task.
         """
-        return self._update_tasks(task_id, "progress")
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
 
-    # TODO Rename this here and in `get_task_metrics` and `get_task_progress`
-    def _update_tasks(self, task_id, arg1):
+        self.logger.info(f"Getting progress for task {task_id}")
+        return self.get_task_registry_data(task_id, "progress")
+
+    def get_task_registry_data(self, task_id: str, data_key: str) -> Dict[str, Any]:
         """
-        Get the progress of a task.
+        Get specific data from a task's registry entry.
+
+        Retrieves specific data (metrics, progress, etc.) from a task's registry entry,
+        sorted by timestamp in ascending order.
 
         Args:
             self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
-            arg1 (str): The key to access in the task registry.
+            data_key (str): The key to access in the task registry (metrics, progress, etc.).
 
         Returns:
-            Dict[str, Any]: The progress of the task.
+            Dict[str, Any]: The requested data for the task.
         """
-        self.task_registry.get(task_id, {}).get(arg1, {}).sort(
-            key=lambda metric: metric["timestamp"], reverse=True
-        )
-        self.task_registry.get(task_id, {}).get(arg1, {}).reverse()
-        return self.task_registry.get(task_id, {}).get(arg1, {})
+        # Initialize components if needed
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+            return {}
+
+        # Get the data safely
+        data = self.task_registry.get(task_id, {}).get(data_key, {})
+
+        # Sort the data if it's a list
+        if isinstance(data, list):
+            data.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
+            data.reverse()
+
+        return data
 
     def get_task_type(self, task_id: str) -> str:
         """
         Get the type of a task.
+
+        Retrieves the type classification of a specific task.
 
         Args:
             self: The instance of the TaskRegistryManager.
@@ -523,13 +644,21 @@ class TaskRegistryManager:
         Returns:
             str: The type of the task.
         """
-        return self._extracted_from_get_task_weight_12(
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+
+        return self.get_task_attribute(
             "Getting task type for task ", task_id, "type", "Unknown"
         )
 
     def get_task_weight(self, task_id: str) -> float:
         """
         Get the weight of a task.
+
+        Retrieves the priority weight assigned to a specific task.
+        Higher weights typically indicate higher priority tasks.
 
         Args:
             self: The instance of the TaskRegistryManager.
@@ -538,18 +667,55 @@ class TaskRegistryManager:
         Returns:
             float: The weight of the task.
         """
-        return self._extracted_from_get_task_weight_12(
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+
+        return self.get_task_attribute(
             "Getting task weight for task ", task_id, "weight", 0.0
         )
 
-    # TODO Rename this here and in `get_task_type` and `get_task_weight`
-    def _extracted_from_get_task_weight_12(self, arg0, task_id, arg2, arg3):
-        self.logger.info(f"{arg0}{task_id}.")
-        self.task_registry.get(task_id, {}).get(arg2, arg3).sort(
-            key=lambda type: type["timestamp"], reverse=True
+    def get_task_attribute(
+        self, message_prefix: str, task_id: str, attribute_name: str, default_value: Any
+    ) -> Any:
+        """
+        Get a specific attribute from a task.
+
+        Retrieves a specific attribute from a task in the registry with proper logging and
+        timestamp sorting if applicable.
+
+        Args:
+            self: The instance of the TaskRegistryManager.
+            message_prefix (str): Prefix for the log message.
+            task_id (str): The ID of the task.
+            attribute_name (str): The name of the attribute to retrieve.
+            default_value (Any): The default value to return if attribute not found.
+
+        Returns:
+            Any: The requested attribute value.
+        """
+        # Initialize required components
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+
+        self.logger.info(f"{message_prefix}{task_id}.")
+
+        # Get the data safely
+        attribute = self.task_registry.get(task_id, {}).get(
+            attribute_name, default_value
         )
-        self.task_registry.get(task_id, {}).get(arg2, arg3).reverse()
-        return self.task_registry.get(task_id, {}).get(arg2, arg3)
+
+        # Sort the data if it's a list with timestamps
+        if isinstance(attribute, list) and all(
+            isinstance(item, dict) and "timestamp" in item for item in attribute
+        ):
+            attribute.sort(key=lambda item: item["timestamp"], reverse=True)
+            attribute.reverse()
+
+        return attribute
 
     def add_task(self, task: Task) -> None:
         """
@@ -597,6 +763,9 @@ class TaskRegistryManager:
         """
         Update the progress of a task.
 
+        Records the current progress state of a task, including completion percentage,
+        the current processing step, and optionally the total number of steps.
+
         Args:
             self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
@@ -604,31 +773,40 @@ class TaskRegistryManager:
             current_step (str): The current step description.
             total_steps (int, optional): The total number of steps. Defaults to 0.
         """
-        self.logger.info(
-            f"Updating task {task_id} progress: {percent_complete}% - {current_step}"
-        )
-        # Convert list to Queue type-safely
-        if task_id in self.task_registry:
-            self.task_registry[task_id]["progress"] = {
-                "percent_complete": max(
-                    0, min(100, percent_complete)
-                ),  # Ensure between 0-100
-                "current_step": current_step,
-                "total_steps": total_steps,
-                "updated_at": self.get_timestamp(),
-            }
-            self.logger.info(
-                f"Updated task {task_id} progress: {percent_complete}% - {current_step}"
-            )
+        # Initialize logger if needed
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
 
-    # TODO Rename this here and in `update_task_progress`
-    def _extracted_from_update_task_progress_12(
-        self, task_id, percent_complete, current_step, total_steps
-    ):
+        # Use the dedicated method to update progress data
+        self.update_task_progress_data(
+            task_id, percent_complete, current_step, total_steps
+        )
+
+    def update_task_progress_data(
+        self, task_id: str, percent_complete: float, current_step: str, total_steps: int
+    ) -> None:
+        """
+        Update progress data for a task in the registry.
+
+        Updates the progress information for a task in the registry, including
+        percentage complete, current step description, and total steps.
+
+        Args:
+            self: The instance of the TaskRegistryManager.
+            task_id (str): The ID of the task.
+            percent_complete (float): The percentage complete (0-100).
+            current_step (str): The current step description.
+            total_steps (int): The total number of steps.
+        """
+        # Initialize logger if needed
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+
         self.logger.info(
             f"Updating task {task_id} progress: {percent_complete}% - {current_step}"
         )
-        # Convert list to Queue type-safely
+
+        # Update progress if task exists in registry
         if task_id in self.task_registry:
             self.task_registry[task_id]["progress"] = {
                 "percent_complete": max(
@@ -669,7 +847,7 @@ class TaskRegistryManager:
                 self._log_task_completion(task)
                 # Update registry
                 if task_id in self.task_registry:
-                    self._extracted_from_complete_task_18(task_id, result)
+                    self.finalize_task_in_registry(task_id, result)
                 self.logger.info(f"Marked task {task_id} as completed.")
                 return
 
@@ -678,7 +856,7 @@ class TaskRegistryManager:
 
         # Update the registry anyway if it exists
         if task_id in self.task_registry:
-            self._extracted_from_complete_task_18(task_id, result)
+            self.finalize_task_in_registry(task_id, result)
         self._temporary_que_list(task_id)
         # Remove the task from error log
         self.error_log = [log for log in self.error_log if log["task"] != task_id]
@@ -716,11 +894,30 @@ class TaskRegistryManager:
 
         return result
 
-    # TODO Rename this here and in `complete_task`
-    def _extracted_from_complete_task_18(self, task_id, result):
+    def finalize_task_in_registry(self, task_id: str, result: Any = None) -> None:
+        """
+        Finalize a task's entry in the registry.
+
+        Marks a task as completed in the registry, sets progress to 100%,
+        updates timestamps, and stores the result if provided.
+
+        Args:
+            self: The instance of the TaskRegistryManager.
+            task_id (str): The ID of the task.
+            result (Any, optional): The result of the task. Defaults to None.
+        """
+        # Initialize logger if needed
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+
+        # Update task status and progress
         self.task_registry[task_id]["status"] = "completed"
         self.task_registry[task_id]["progress"]["percent_complete"] = 100
         self.task_registry[task_id]["progress"]["current_step"] = "completed"
         self.task_registry[task_id]["progress"]["updated_at"] = self.get_timestamp()
+
+        # Store result if provided
         if result is not None:
             self.task_registry[task_id]["result"] = result
+
+        self.logger.info(f"Finalized task {task_id} in registry")

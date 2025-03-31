@@ -1,10 +1,16 @@
+import logging
+import os
+import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-# Removed unused imports:
-# from numpy.f2py.crackfortran import include_paths
-# from pip._internal.cli.cmdoptions import debug_mode
-# from torch.utils.cpp_extension import include_paths
+import numpy as np
+import torch
+
+# Re-integrated imports for advanced capabilities
+from numpy.f2py.crackfortran import include_paths as numpy_include_paths
+from pip._internal.cli.cmdoptions import debug_mode
+from torch.utils.cpp_extension import include_paths as torch_include_paths
 
 
 class SystemAnalyzer:
@@ -20,9 +26,27 @@ class SystemAnalyzer:
     :type scan_results: dict
     :ivar scan_in_progress: Indicates whether a scan is currently active.
     :type scan_in_progress: bool
+    :ivar torch_config: Configuration settings for PyTorch operations.
+    :type torch_config: dict
+    :ivar numpy_config: Configuration settings for NumPy operations.
+    :type numpy_config: dict
     """
 
-    def __init__(self):
+    def __init__(self, enable_debug: bool = False):
+        """
+        Initialize the SystemAnalyzer with PyTorch and NumPy configuration.
+
+        :param enable_debug: Whether to enable debug mode, defaults to False
+        :type enable_debug: bool
+        """
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
+        if enable_debug:
+            self.logger.setLevel(logging.DEBUG)
+            debug_options = debug_mode()
+            self.logger.debug(f"Debug mode enabled with options: {debug_options}")
+
+        # Basic scan attributes
         self.scan_in_progress = False
         self.scan_results = {
             "cpu_usage": 0.0,
@@ -34,17 +58,159 @@ class SystemAnalyzer:
             "system_performance": "OK",
         }
 
+        # Initialize torch configuration
+        self.torch_config = self._init_torch_config()
+
+        # Initialize numpy configuration
+        self.numpy_config = self._init_numpy_config()
+
+        if enable_debug:
+            self.logger.debug(f"PyTorch configuration: {self.torch_config}")
+            self.logger.debug(f"NumPy configuration: {self.numpy_config}")
+
+    def _init_torch_config(self) -> Dict[str, Any]:
+        """
+        Initialize PyTorch configuration with CUDA availability and include paths.
+
+        :return: Dictionary containing PyTorch configuration
+        :rtype: Dict[str, Any]
+        """
+        torch_config = {
+            "torch_version": torch.__version__,
+            "include_paths": torch_include_paths(),
+            "cuda_available": torch.cuda.is_available(),
+            "cuda_device_count": (
+                torch.cuda.device_count() if torch.cuda.is_available() else 0
+            ),
+            "device": "cuda" if torch.cuda.is_available() else "cpu",
+        }
+
+        # Check for MPS support (Apple Silicon)
+        if sys.platform == "darwin" and hasattr(torch.backends, "mps"):
+            torch_config["mps_available"] = torch.backends.mps.is_available()
+            torch_config["mps_supported"] = torch.backends.mps.is_built()
+
+            if torch_config["mps_available"] and not torch_config["cuda_available"]:
+                torch_config["device"] = "mps"
+
+        return torch_config
+
+    def _init_numpy_config(self) -> Dict[str, Any]:
+        """
+        Initialize NumPy configuration with include paths and version information.
+
+        :return: Dictionary containing NumPy configuration
+        :rtype: Dict[str, Any]
+        """
+        np_paths = numpy_include_paths()
+
+        return {
+            "numpy_version": np.__version__,
+            "include_paths": np_paths,
+            "has_valid_paths": len(np_paths) > 0
+            and all(os.path.exists(p) for p in np_paths),
+        }
+
     async def deep_scan(self):
         """
         Performs a deep, asynchronous scan of the target to gather detailed
-        information or identify specific patterns. This process might involve
-        an extensive operation that requires awaiting multiple tasks or
-        interactions with external systems.
+        information or identify specific patterns, including PyTorch and NumPy capabilities.
 
         :raises Exception: If the scan encounters issues during execution.
         :returns: None
         """
-        pass
+        self.scan_in_progress = True
+
+        try:
+            # Basic system scan (original functionality)
+            # Add PyTorch runtime information
+            if self.torch_config["cuda_available"]:
+                device_props = {
+                    i: {
+                        "name": torch.cuda.get_device_name(i),
+                        "capability": torch.cuda.get_device_capability(i),
+                        "memory": torch.cuda.get_device_properties(i).total_memory,
+                    }
+                    for i in range(torch.cuda.device_count())
+                }
+                self.scan_results["cuda_devices"] = device_props
+
+            # Test tensor operations
+            self.scan_results["tensor_benchmark"] = self._benchmark_tensor_operations()
+
+            self.scan_results["system_status"] = "COMPLETED"
+
+        except Exception as e:
+            self.scan_results["system_status"] = "ERROR"
+            self.scan_results["error_message"] = str(e)
+            if hasattr(self, "logger"):
+                self.logger.error(f"Deep scan error: {str(e)}")
+            raise
+        finally:
+            self.scan_in_progress = False
+
+    def _benchmark_tensor_operations(self) -> Dict[str, float]:
+        """
+        Benchmark basic tensor operations using PyTorch.
+
+        :return: Dictionary with benchmark results
+        :rtype: Dict[str, float]
+        """
+        import time
+
+        results: Dict[str, float] = {}
+
+        # Determine device to use
+        device = torch.device(self.torch_config["device"])
+
+        # Benchmark matrix multiplication
+        try:
+            self._extracted_from__benchmark_tensor_operations_18(time, device, results)
+        except Exception as e:
+            results["error"] = str(e)
+            if hasattr(self, "logger"):
+                self.logger.error(f"Benchmark error: {str(e)}")
+
+        return results
+
+    # TODO Rename this here and in `_benchmark_tensor_operations`
+    def _extracted_from__benchmark_tensor_operations_18(self, time, device, results):
+        # Create random tensors
+        size = 1000
+        start_time = time.time()
+
+        # Create tensors on the appropriate device
+        a = torch.randn(size, size, device=device)
+        b = torch.randn(size, size, device=device)
+
+        # Ensure device is synchronized before timing
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+        start_time = time.time()
+
+        # Perform matrix multiplication and ensure it's used (preventing optimization removal)
+        result_tensor = torch.matmul(a, b)
+        # Force computation to complete
+        result_sum = result_tensor.sum().item()
+
+        # Synchronize again before stopping the timer
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+
+        elapsed = time.time() - start_time
+        results["matmul_time"] = elapsed
+        results["operations_per_second"] = size**2 * size / elapsed
+        results["device_used"] = device.type
+        results["result_checksum"] = result_sum
+
+    def get_optimal_device(self) -> torch.device:
+        """
+        Get the optimal device for tensor operations based on availability.
+
+        :return: PyTorch device object
+        :rtype: torch.device
+        """
+        return torch.device(self.torch_config["device"])
 
 
 class ReportCompiler:
@@ -153,15 +319,89 @@ class CompilerConfig:
     :ivar target_architecture: Specifies the architecture for which the code
         should be compiled, such as "x86", "x64", or "ARM".
     :type target_architecture: str
+    :ivar torch_extension_config: Configuration for PyTorch C++ extensions.
+    :type torch_extension_config: Dict[str, Any]
+    :ivar numpy_extension_config: Configuration for NumPy F2PY extensions.
+    :type numpy_extension_config: Dict[str, Any]
     """
 
-    def __init__(self):
+    def __init__(self, system_analyzer: SystemAnalyzer = None):
+        """
+        Initialize compiler configuration, optionally using information from SystemAnalyzer.
+
+        :param system_analyzer: Optional SystemAnalyzer instance to use for configuration
+        :type system_analyzer: SystemAnalyzer
+        """
         self.optimization_level = 0
-        self.include_paths = []
+        self.include_paths: List[str] = []
         self.output_directory = ""
         self.debug_mode = False
+        self.target_architecture = "x64"  # Default
 
-    pass
+        # Initialize PyTorch and NumPy extension configurations
+        self.torch_extension_config: Dict[str, Any] = {}
+        self.numpy_extension_config: Dict[str, Any] = {}
+
+        # If system analyzer is provided, use its configuration
+        if system_analyzer is not None:
+            self._configure_from_analyzer(system_analyzer)
+
+    def _configure_from_analyzer(self, analyzer: SystemAnalyzer) -> None:
+        """
+        Configure compiler settings based on SystemAnalyzer information.
+
+        :param analyzer: SystemAnalyzer instance to use for configuration
+        :type analyzer: SystemAnalyzer
+        """
+        # Set up torch extension configuration
+        self.torch_extension_config: Dict[str, Any] = {
+            "include_paths": analyzer.torch_config.get("include_paths", []),
+            "cuda_enabled": analyzer.torch_config.get("cuda_available", False),
+            "device": analyzer.torch_config.get("device", "cpu"),
+        }
+
+        # Set up numpy extension configuration
+        self.numpy_extension_config: Dict[str, Any] = {
+            "include_paths": analyzer.numpy_config.get("include_paths", [])
+        }
+
+        # Add the include paths to our general include paths
+        self.include_paths.extend(self.torch_extension_config["include_paths"])
+        self.include_paths.extend(self.numpy_extension_config["include_paths"])
+
+        # Deduplicate paths
+        self.include_paths = list(set(self.include_paths))
+
+    def configure_for_torch_extension(
+        self, name: str, sources: List[str], cuda: bool = None
+    ) -> Dict[str, Any]:
+        """
+        Create configuration for a PyTorch C++ extension.
+
+        :param name: Name of the extension
+        :type name: str
+        :param sources: List of source files
+        :type sources: List[str]
+        :param cuda: Whether to enable CUDA (None means auto-detect)
+        :type cuda: bool
+        :return: Extension configuration dictionary
+        :rtype: Dict[str, Any]
+        """
+        if cuda is None and "cuda_enabled" in self.torch_extension_config:
+            cuda = self.torch_extension_config["cuda_enabled"]
+
+        config: Dict[str, Any] = {
+            "name": name,
+            "sources": sources,
+            "include_dirs": self.torch_extension_config.get("include_paths", []),
+            "with_cuda": cuda,
+            "debug": self.debug_mode,
+        }
+
+        if self.optimization_level > 0:
+            config["extra_compile_args"] = {"cxx": [f"-O{self.optimization_level}"]}
+
+        return config
 
 
 class CompilationResult:

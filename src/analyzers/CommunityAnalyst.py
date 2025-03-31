@@ -52,7 +52,7 @@ class CommunityAnalyst:
         """
         self.analyzer = analyzer
         self.report = self.analyzer.analyze(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def detect(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -66,7 +66,7 @@ class CommunityAnalyst:
         """
         self.analyzer = analyzer
         self.report = self.analyzer.detect(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def rank(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -81,7 +81,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.rank(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def visualize(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -96,7 +96,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.visualize(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def export(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -111,7 +111,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.export(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def save(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -126,7 +126,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.save(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def load(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -141,7 +141,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.load(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def delete(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -156,7 +156,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.delete(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def update(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -171,7 +171,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.update(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def get(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -186,7 +186,7 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.get(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
     def set(self, analyzer: ResultAnalyzer) -> Optional[Dict[str, Any]]:
         """
@@ -201,10 +201,9 @@ class CommunityAnalyst:
         self.analyzer = analyzer
         self.report = self.analyzer.set(self.graph)
         self.metrics = self.analyzer.metrics(self.graph)
-        return self._extracted_from_set_13()
+        return self._extract_metrics()
 
-    # TODO Rename this here and in `analyze`, `detect`, `rank`, `visualize`, `export`, `save`, `load`, `delete`, `update`, `get` and `set`
-    def _extracted_from_set_13(self):
+    def _extract_metrics(self):
         """
         Extracts metrics and logs from the analyzer.
         """

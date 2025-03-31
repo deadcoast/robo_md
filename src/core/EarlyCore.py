@@ -5,10 +5,9 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
+from OptimizedCore import NLPCore
 from sklearn.preprocessing import Normalizer
 from transformers import BertTokenizer
-
-from OptimizedCore import NLPCore
 
 
 class ProgressTracker:
@@ -295,7 +294,7 @@ class BERTEmbedding:
         self.logger.propagate = False
         self.logger.info("BERTEmbedding initialized.")
 
-    pass
+    # TODO: Create the Bert Empedding
 
 
 class MetaFeatureExtractor:
@@ -376,7 +375,10 @@ class BatchData:
     """
 
     def __init__(
-        self, data: List[Any], batch_size: int = 1, metadata: Optional[Dict[str, Any]] = None
+        self,
+        data: List[Any],
+        batch_size: int = 1,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.data = data
         self.batch_size = batch_size
@@ -409,7 +411,9 @@ class FeatureMatrix:
     :type num_samples: int
     """
 
-    def __init__(self, data: List[List[float]], feature_names: Optional[List[str]] = None) -> None:
+    def __init__(
+        self, data: List[List[float]], feature_names: Optional[List[str]] = None
+    ) -> None:
         self.data = data
         self.feature_names = feature_names
         self.num_features = len(feature_names) if feature_names else 0
@@ -493,7 +497,9 @@ class FeatureProcessor:
 
         return self.merge_features(embeddings, meta_features)
 
-    def merge_features(self, embeddings: np.ndarray, meta_features: Dict[str, Any]) -> np.ndarray:
+    def merge_features(
+        self, embeddings: np.ndarray, meta_features: Dict[str, Any]
+    ) -> np.ndarray:
         """
         Merges input features by integrating embeddings and meta_features. This
         operation combines the provided embedding features with additional
@@ -552,38 +558,41 @@ class BatchMetrics:
         if not isinstance(other, BatchMetrics):
             return False
         return (
-            self.token_count == other.token_count and
-            self.progress_percentage == other.progress_percentage and
-            self.batch_completion == other.batch_completion and
-            self.batch_start_time == other.batch_start_time and
-            self.batch_end_time == other.batch_end_time and
-            self.batch_id == other.batch_id and
-            self.metadata == other.metadata and
-            self.processed_count == other.processed_count and
-            self.success_rate == other.success_rate and
-            self.error_count == other.error_count and
-            self.execution_time_ms == other.execution_time_ms and
-            self.errors == other.errors
+            self.token_count == other.token_count
+            and self.progress_percentage == other.progress_percentage
+            and self.batch_completion == other.batch_completion
+            and self.batch_start_time == other.batch_start_time
+            and self.batch_end_time == other.batch_end_time
+            and self.batch_id == other.batch_id
+            and self.metadata == other.metadata
+            and self.processed_count == other.processed_count
+            and self.success_rate == other.success_rate
+            and self.error_count == other.error_count
+            and self.execution_time_ms == other.execution_time_ms
+            and self.errors == other.errors
         )
 
     def __ne__(self, other: Any) -> bool:
         return not self == other
 
     def __hash__(self) -> int:
-        return hash((
-            self.token_count,
-            self.progress_percentage,
-            self.batch_completion,
-            self.batch_start_time,
-            self.batch_end_time,
-            self.batch_id,
-            self.metadata,
-            self.processed_count,
-            self.success_rate,
-            self.error_count,
-            self.execution_time_ms,
-            self.errors
-        ))
+        return hash(
+            (
+                self.token_count,
+                self.progress_percentage,
+                self.batch_completion,
+                self.batch_start_time,
+                self.batch_end_time,
+                self.batch_id,
+                self.metadata,
+                self.processed_count,
+                self.success_rate,
+                self.error_count,
+                self.execution_time_ms,
+                self.errors,
+            )
+        )
+
 
 @dataclass
 class FeatureGenerationStats:

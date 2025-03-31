@@ -1,19 +1,18 @@
+from dataclasses import dataclass, field
 from typing import Dict
 
-from dataclasses import dataclass, field
-
 from src.config.EngineConfig import SystemConfig
-from src.ExecutionValidator import ExecutionValidator
-from src.ResourceManager import ResourceManager
+from src.Continuation import Continuation
+from src.ContinuationResult import ContinuationResult
 from src.ExecutionMonitor import ExecutionMonitor
 from src.ExecutionResult import ExecutionResult
-from src.StateValidator import StateValidator
-from src.ContinuationResult import ContinuationResult
-from src.StateValidationError import StateValidationError
-from src.StateManager import StateManager
-from src.ResourceAllocator import ResourceAllocator
+from src.ExecutionValidator import ExecutionValidator
 from src.ProgressTracker import ProgressTracker
-from src.Continuation import Continuation
+from src.ResourceAllocator import ResourceAllocator
+from src.ResourceManager import ResourceManager
+from src.StateManager import StateManager
+from src.StateValidationError import StateValidationError
+from src.StateValidator import StateValidator
 
 
 class ExecutionCore:
@@ -46,7 +45,6 @@ class ExecutionCore:
         self.validator.initialize()
         self.resource_manager.initialize()
         self.monitor.initialize()
-
 
     async def process_next_task(self) -> ExecutionResult:
         """
@@ -87,58 +85,11 @@ class ExecutionMetrics:
     :ivar performance_stats: Performance statistics for the execution.
     :type performance_stats: dict
     """
+
     phase_complete: int = 0
     current_phase: str = ""
     error_count: int = 0
     performance_stats: Dict[str, float] = field(default_factory=dict)
-
-
-class ExecutionManager:
-    """
-    _summary_
-
-    _extended_summary_
-
-    :ivar controller: The controller for the execution manager.
-    :type controller: ExecutionController
-    :ivar validator: The validator for the execution manager.
-    :type validator: StateValidator
-    :ivar monitor: The monitor for the execution manager.
-    :type monitor: ExecutionMonitor
-    """
-    def __init__(self):
-        self.controller = ExecutionController()
-        self.validator = StateValidator()
-        self.monitor = ExecutionMonitor()
-
-    async def process_continuation(self) -> ContinuationResult:
-        """
-        _summary_
-
-        _extended_summary_
-
-        Returns:
-            ContinuationResult: _description_
-        """
-        try:
-            # Validate current state
-            state_valid = await self.validator.check_state()
-            if not state_valid:
-                raise StateValidationError("Invalid system state")
-
-            # Initialize continuation
-            continuation = await self.controller.initialize_continuation()
-
-            # Monitor execution
-            with self.monitor.track_execution():
-                result = await self.controller.execute_continuation(continuation)
-
-            return ContinuationResult(
-                success=True, state=result.state, metrics=result.metrics
-            )
-
-        except Exception as e:
-            return ContinuationResult(success=False, error=str(e))
 
 
 class ExecutionController:
@@ -158,6 +109,7 @@ class ExecutionController:
     :ivar monitor: The monitor for the execution controller.
     :type monitor: ExecutionMonitor
     """
+
     def __init__(self, config: SystemConfig):
         """
         Initializes the execution controller.
@@ -173,7 +125,6 @@ class ExecutionController:
         self.monitor = ExecutionMonitor()
         self._initialize()
 
-
     def _initialize(self):
         """
         Initializes the execution controller.
@@ -185,7 +136,6 @@ class ExecutionController:
         self.state_manager.initialize()
         self.resource_allocator.initialize()
         self.progress_tracker.initialize()
-
 
     def _execute_next_phase(self, state, resources):
         """
@@ -211,7 +161,9 @@ class ExecutionController:
 
         return await self._execute_next_phase(state, resources)
 
-    async def execute_continuation(self, continuation: Continuation) -> ContinuationResult:
+    async def execute_continuation(
+        self, continuation: Continuation
+    ) -> ContinuationResult:
         """
         _summary_
 
