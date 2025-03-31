@@ -1,13 +1,12 @@
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
-from dataclasses import field
-from queue import PriorityQueue
 from contextlib import contextmanager
-from src.EngineConfig import SystemConfig
-from src.ChainConfig import ChainConfig
-from src.ValidationResult import VerificationResult
-from src.ValidationResult import ValidationResult
+from dataclasses import dataclass, field
 from datetime import datetime
+from queue import PriorityQueue
+from typing import Any, Dict, List, Optional
+
+from src.ChainConfig import ChainConfig
+from src.EngineConfig import SystemConfig
+from src.ValidationResult import ValidationResult, VerificationResult
 
 
 # Define missing classes to fix undefined name errors
@@ -82,6 +81,7 @@ class ValidationProtocol:
 
 class ValidationError(Exception):
     """Exception raised for validation errors."""
+
     pass
 
 
@@ -103,7 +103,7 @@ class ExecutionEngine:
 class ResultProcessor:
     async def process_results(self, execution_result: ExecutionResult) -> Any:
         # Implementation would go here
-        return type('ValidationResultProxy', (), {'is_valid': True, 'metrics': {}})
+        return type("ValidationResultProxy", (), {"is_valid": True, "metrics": {}})
 
 
 @contextmanager
@@ -120,19 +120,19 @@ def ValidationContext(env: Dict[str, Any]) -> Any:
 class DeepScanner:
     async def execute_scan(self, context: Any) -> Any:
         # Implementation would go here
-        return type('ScanResult', (), {'valid': True})
+        return type("ScanResult", (), {"valid": True})
 
 
 class IntegrityValidator:
     async def check_integrity(self, context: Any) -> Any:
         # Implementation would go here
-        return type('IntegrityResult', (), {'valid': True})
+        return type("IntegrityResult", (), {"valid": True})
 
 
 class ResultVerifier:
     async def verify_results(self, context: Any) -> Any:
         # Implementation would go here
-        return type('VerificationResult', (), {'valid': True})
+        return type("VerificationResult", (), {"valid": True})
 
 
 class IntegrityChecker:
@@ -151,6 +151,7 @@ class ExecutionValidator:
     async def check(self, context: Any) -> bool:
         # Implementation would go here
         return True
+
 
 @dataclass
 class ValidationConfig:
@@ -314,7 +315,9 @@ class ValidationExecutor:
 
     async def _process_results(self, status: Any) -> ExecutionResult:
         # Implementation would go here
-        return ExecutionResult(result_id="exec-1", success=True, execution_time=0.5, output={})
+        return ExecutionResult(
+            result_id="exec-1", success=True, execution_time=0.5, output={}
+        )
 
     async def execute_validation(self) -> ExecutionResult:
         protocol = await self._get_next_protocol()

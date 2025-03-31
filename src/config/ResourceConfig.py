@@ -179,17 +179,19 @@ class ResourceConfig:
         )
 
 
+@dataclass
 class ResourceAllocation:
     """
     Represents a resource allocation.
 
-    This class does not have any specific behavior or attributes.
-
     Args:
-        None
-
-    Raises:
-        None
+        resource_id: The ID of the resource being allocated
+        amount: The amount of the resource being allocated
+        priority: The priority of this allocation
+        metadata: Additional metadata for this allocation
     """
 
-    pass
+    resource_id: str
+    amount: float
+    priority: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)

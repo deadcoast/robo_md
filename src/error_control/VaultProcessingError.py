@@ -8,6 +8,8 @@ from typing import Any, Dict
 
 @dataclass
 class VaultProcessingError(Exception):
+    """VaultProcessingError class."""
+
     message: str = ""
     details: Dict[str, Any] = field(default_factory=dict)
 

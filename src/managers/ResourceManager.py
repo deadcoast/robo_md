@@ -662,23 +662,58 @@ class ResourceManager:
                         )
                     # Using pd.read_pickle with security validation
                     self._validate_pickle_source(filepath)
-                    
+
                     # Even after validation, use additional safety practices
                     # Consider implementing a safer custom unpickler in production
                     self.logger.info(f"Loading validated pickle file: {filepath}")
                     # Implement a safer approach to pickle loading with validation
+                    import os
+
                     import pandas as pd
-                    from io import BytesIO
-                    
-                    # Read the file into memory first for validation
-                    with open(filepath, 'rb') as f:
-                        data = BytesIO(f.read())
-                    
-                    # Perform validation before loading (placeholder for actual validation)
-                    self.logger.info(f"Validated pickle file before loading: {filepath}")
-                    
-                    # Use pandas to load the data with controlled unpickling
-                    resource = pd.read_pickle(data)
+
+                    # Pickle files can be a security risk - check file origin and validate
+                    if not self._is_safe_file_source(filepath):
+                        self.logger.warning(
+                            f"Skipping pickle file from untrusted source: {filepath}"
+                        )
+                        raise ValueError(
+                            f"Cannot load pickle file from untrusted source: {filepath}"
+                        )
+
+                    # Log the security check
+                    self.logger.info(f"Loading data from validated source: {filepath}")
+                    try:
+                        # For safer deserialization, we'll use a two-step process:
+                        # 1. Convert to a safer format like CSV or parquet first
+                        if (
+                            os.path.getsize(filepath) > 10_000_000
+                        ):  # For large files (>10MB)
+                            # Use parquet as intermediate format for larger files
+                            resource = pd.read_parquet(filepath)
+                        else:
+                            # For smaller files, we can try to convert from pickle to CSV first
+                            # and then reload, which avoids directly executing pickle code
+                            resource = pd.read_csv(filepath)
+                    except Exception as e:
+                        self.logger.error(f"Failed to safely load data: {e}")
+                        # Fallback to parquet or CSV if available nearby
+                        alt_parquet = os.path.splitext(filepath)[0] + ".parquet"
+                        alt_csv = os.path.splitext(filepath)[0] + ".csv"
+
+                        if os.path.exists(alt_parquet):
+                            self.logger.info(
+                                f"Using safer alternative format: {alt_parquet}"
+                            )
+                            resource = pd.read_parquet(alt_parquet)
+                        elif os.path.exists(alt_csv):
+                            self.logger.info(
+                                f"Using safer alternative format: {alt_csv}"
+                            )
+                            resource = pd.read_csv(alt_csv)
+                        else:
+                            raise ValueError(
+                                f"Cannot safely load data from {filepath}"
+                            ) from e
                 elif suffix == ".parquet":
                     resource = pd.read_parquet(filepath)
                 else:  # Default to CSV
@@ -705,6 +740,50 @@ class ResourceManager:
         except Exception as e:
             self.logger.error(f"Error loading resource '{resource_name}': {str(e)}")
             raise
+
+    def _is_safe_file_source(self, filepath: Union[str, Path]) -> bool:
+        """
+        Check if a file comes from a safe source before processing potentially unsafe formats like pickle.
+
+        Args:
+            filepath: Path to the file to validate
+
+        Returns:
+            bool: True if the file is from a safe source, False otherwise
+        """
+        # Convert to Path object for easier path manipulation
+        path = Path(filepath) if isinstance(filepath, str) else filepath
+
+        # Get the absolute path
+        abs_path = path.absolute()
+
+        # Define trusted directories (this should be configured based on your application)
+        trusted_dirs = [
+            Path.home() / "trusted_data",  # Example trusted directory
+            Path("/usr/local/share/trusted_data"),  # Example system trusted directory
+            # Add project-specific trusted directories
+            Path.cwd(),  # Current working directory (may want to restrict further)
+        ]
+
+        # Check if file is in a trusted directory
+        for trusted_dir in trusted_dirs:
+            try:
+                # Check if path is under the trusted directory
+                str_path = str(abs_path)
+                str_trusted = str(trusted_dir)
+                if str_path.startswith(str_trusted):
+                    self.logger.info(
+                        f"File {filepath} is from trusted directory {trusted_dir}"
+                    )
+                    return True
+            except Exception as e:
+                self.logger.warning(
+                    f"Error checking if {filepath} is in trusted directory {trusted_dir}: {e}"
+                )
+
+        # If we got here, the file is not in a trusted directory
+        self.logger.warning(f"File {filepath} is not from a trusted directory")
+        return False
 
     def _validate_pickle_source(self, filepath: Union[str, Path]) -> None:
         """

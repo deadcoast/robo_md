@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict
 
-from core.MarkdownProcessor import MarkdownProcessingError
+from src.processors.MarkdownProcessor import MarkdownProcessingError
 
 
 class ExecutionMonitor:

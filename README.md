@@ -31,19 +31,23 @@ Robo Claud
 ## Core Components
 
 ### Document Processing
+
 - **MarkdownProcessor**: Processes Markdown documents, extracts metadata, and normalizes content.
 - **FeatureProcessor**: Generates feature vectors from processed documents using embeddings and NLP.
 
 ### Task Management
+
 - **TaskRegistryManager**: Manages task registration and execution.
 - **ChainManager**: Orchestrates task chains with dependencies and priorities.
 - **ExecutionCore**: Controls the execution flow of tasks and monitors performance.
 
 ### Analytics
+
 - **AnalyticsEngine**: Performs analytics on feature matrices using clustering and topic modeling.
 - **AdvancedFeatureProcessor**: Extends basic feature processing with topic modeling and graph features.
 
 ### System Components
+
 - **CompilationCore**: Coordinates system analysis, report generation, and validation.
 - **SystemScanner**: Performs deep scanning of system parameters and diagnostics.
 - **UpdateTracker**: Monitors the progress of system updates.
@@ -64,18 +68,21 @@ Robo Claud relies on several Python packages:
 ## Installation
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/yourusername/robo_claud.git
    cd robo_claud
    ```
 
 2. Create and activate a virtual environment:
+
    ```
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
 3. Install the required dependencies:
+
    ```
    pip install -r requirements.txt
    ```

@@ -1,20 +1,24 @@
-from pathlib import Path
-from typing import Any, Dict, Optional, Union, TypeVar, cast
-import ast
+"""DataCore class."""
 
-import pandas as pd
+import ast
+from pathlib import Path
+from typing import Any, Dict, Optional, TypeVar, Union, cast
+
 import numpy as np
+import pandas as pd
 import torch
 from pyarrow import timestamp
-from safetensors.torch import save_file, load_file
+from safetensors.torch import load_file, save_file
 from torchgen.utils import FileManager
 
 # Type aliases for clarity
-DataFrame = TypeVar('DataFrame', bound='pd.DataFrame')
-NDArray = TypeVar('NDArray', bound='np.ndarray')
+DataFrame = TypeVar("DataFrame", bound="pd.DataFrame")
+NDArray = TypeVar("NDArray", bound="np.ndarray")
 
 
-def save_tensor_dict(tensor_dict: Dict[str, torch.Tensor], file_path: Union[str, Path]) -> Dict[str, Any]:
+def save_tensor_dict(
+    tensor_dict: Dict[str, torch.Tensor], file_path: Union[str, Path]
+) -> Dict[str, Any]:
     """
     Save a dictionary of tensors to a file using safetensors format.
 
@@ -167,7 +171,9 @@ class ProcessedData:
     :type metadata: dict
     """
 
-    def __init__(self, dataframe: DataFrame, matrices: NDArray, tensor_metadata: Dict[str, Any]) -> None:
+    def __init__(
+        self, dataframe: DataFrame, matrices: NDArray, tensor_metadata: Dict[str, Any]
+    ) -> None:
         self.processed_content: DataFrame = dataframe
         self.matrices: NDArray = matrices
         self.tensor_metadata: Dict[str, Any] = tensor_metadata

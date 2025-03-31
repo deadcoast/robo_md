@@ -1,18 +1,23 @@
+"""ChainCore class.
+
+This module contains the ChainCore class, which is a class for managing task chains.
+
+"""
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
 from datetime import datetime
 from queue import PriorityQueue
-
-# Import with type ignores for modules lacking py.typed markers
-from src.config.SystemConfig import SystemConfig  # type: ignore
+from typing import Any, Dict, List
 
 # Import the necessary components from the correct locations
 from src.ChainResult import ChainResult  # type: ignore
-from src.Results.ExecutionResult import ExecutionResult  # type: ignore
-from src.ResourceManager import ResourceManager  # type: ignore
+
+# Import with type ignores for modules lacking py.typed markers
+from src.config.SystemConfig import SystemConfig  # type: ignore
 from src.ExecutionMonitor import ExecutionMonitor  # type: ignore
 from src.ExecutionValidator import ChainValidator  # type: ignore
+from src.ResourceManager import ResourceManager  # type: ignore
+from src.Results.ExecutionResult import ExecutionResult  # type: ignore
 
 
 @dataclass
@@ -32,6 +37,7 @@ class TaskChainConfig:
         dependencies (List[str]): A list of dependencies for the task chain.
         resource_requirements (Dict[str, float]): A dictionary of resource requirements for the task chain.
     """
+
     chain_id: str
     priority: int
     dependencies: List[str]
@@ -54,6 +60,7 @@ class ChainManager:
     Methods:
         process_next_chain: Process the next task chain in the queue.
     """
+
     def __init__(self, config: SystemConfig):
         self.active_chains: List[TaskChainConfig] = []
         self.execution_queue: PriorityQueue[TaskChainConfig] = PriorityQueue()
@@ -99,6 +106,7 @@ class ChainMetrics:
         resource_allocation (Dict[str, float]): A dictionary of resource allocation metrics.
         error_registry (List[str]): A list of error registry.
     """
+
     chain_id: str
     execution_time: float
     task_completion: Dict[str, float]
@@ -126,14 +134,18 @@ class ChainMetrics:
             str: The string representation of the object.
         """
         # Sort the error_registry list - this is safe as error_registry is a list
-        sorted_errors = sorted(self.error_registry, key=lambda error: error.get("timestamp", ""), reverse=False)
+        sorted_errors = sorted(
+            self.error_registry,
+            key=lambda error: error.get("timestamp", ""),
+            reverse=False,
+        )
         self.error_registry = sorted_errors
-        
+
         # For dictionaries, we should use sorted items for display purposes
         # but we don't modify the dictionaries themselves with sort methods
         sorted_task_completion = dict(sorted(self.task_completion.items()))
         sorted_resource_allocation = dict(sorted(self.resource_allocation.items()))
-        
+
         self.status = ""
         self.timestamp = datetime.now()
         return f"ChainMetrics(chain_id={self.chain_id}, execution_time={self.execution_time}, task_completion={sorted_task_completion}, resource_allocation={sorted_resource_allocation}, error_registry={self.error_registry})"
@@ -146,7 +158,11 @@ class ChainMetrics:
             str: The string representation of the object.
         """
         # Sort error_registry if it's a list
-        sorted_errors = sorted(self.error_registry, key=lambda error: error.get("timestamp", ""), reverse=False)
+        sorted_errors = sorted(
+            self.error_registry,
+            key=lambda error: error.get("timestamp", ""),
+            reverse=False,
+        )
         self.error_registry = sorted_errors
         return str(self)
 
@@ -165,11 +181,11 @@ class ChainMetrics:
         if not isinstance(other, ChainMetrics):
             return False
         return (
-            self.chain_id == other.chain_id and
-            self.execution_time == other.execution_time and
-            self.task_completion == other.task_completion and
-            self.resource_allocation == other.resource_allocation and
-            self.error_registry == other.error_registry
+            self.chain_id == other.chain_id
+            and self.execution_time == other.execution_time
+            and self.task_completion == other.task_completion
+            and self.resource_allocation == other.resource_allocation
+            and self.error_registry == other.error_registry
         )
 
     def __ne__(self, other: object) -> bool:
@@ -197,6 +213,7 @@ class ChainExecutor:
     Methods:
         execute_chain: Execute a task chain.
     """
+
     def __init__(self):
         self.validator = ChainValidator()
         self.resource_manager = ResourceManager()
@@ -232,7 +249,9 @@ class ChainExecutor:
         except Exception as e:
             return ChainResult(success=False, error=str(e))
 
-    async def _prepare_chain_context(self, chain_config: TaskChainConfig) -> Dict[str, Any]:
+    async def _prepare_chain_context(
+        self, chain_config: TaskChainConfig
+    ) -> Dict[str, Any]:
         """Prepare the execution context for a chain.
 
         Args:
@@ -256,7 +275,7 @@ class ChainExecutor:
         # Implementation would go here
         return {"processed": True}
 
-    def _compute_chain_metrics(self, result: Any) -> 'ChainMetrics':
+    def _compute_chain_metrics(self, result: Any) -> "ChainMetrics":
         """Compute metrics for a chain execution.
 
         Args:
@@ -270,5 +289,5 @@ class ChainExecutor:
             chain_id="sample",
             execution_time=0.0,
             task_completion={},
-            resource_allocation={}
+            resource_allocation={},
         )

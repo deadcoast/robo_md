@@ -19,12 +19,18 @@ class MarkdownProcessingError(Exception):
     file_path: Optional[Path] = None
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the object.
+        """
         if self.file_path:
             return f"{self.message} - File: {self.file_path}"
         return self.message
 
     def __repr__(self) -> str:
-        return self.__str__()
+        """
+        Returns a string representation of the object.
+        """
+        return f"MarkdownProcessingError(message={self.message}, file_path={self.file_path})"
 
     def __eq__(self, other) -> bool:
         if isinstance(other, MarkdownProcessingError):
@@ -33,7 +39,14 @@ class MarkdownProcessingError(Exception):
 
 
 class MarkdownProcessor:
+    """
+    MarkdownProcessor class
+    """
+
     def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize the MarkdownProcessor.
+        """
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
@@ -301,152 +314,6 @@ class MarkdownProcessor:
             "files": successful,
             "total_stats": total_stats,
         }
-
-    def _normalize_content(self, content: str) -> str:
-        """
-        Normalize Markdown content.
-
-        Args:
-            content (str): The content of the Markdown file.
-
-        Returns:
-            str: The normalized content.
-
-        Raises:
-            MarkdownProcessingError: If there is an error normalizing the content.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.error(f"Content normalization error: {str(e)}")
-            raise MarkdownProcessingError(str(e)) from e
-
-    def _compute_stats(self, content: str) -> Dict[str, Any]:
-        """
-        Compute statistics from Markdown content.
-
-        Args:
-            content (str): The content of the Markdown file.
-
-        Returns:
-            Dict[str, Any]: The computed statistics.
-
-        Raises:
-            MarkdownProcessingError: If there is an error computing statistics.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.error(f"Stats computation error: {str(e)}")
-            raise MarkdownProcessingError(str(e)) from e
-
-    def _aggregate_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Aggregate results from processed files.
-
-        Args:
-            results (List[Dict[str, Any]]): The results of processing files.
-
-        Returns:
-            Dict[str, Any]: The aggregated results.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.error(f"Results aggregation error: {str(e)}")
-            raise MarkdownProcessingError(str(e)) from e
-
-    def _process_file(self, file_path: Path) -> Dict[str, Any]:
-        """
-        Process a single Markdown file and return the processed data.
-
-        Args:
-            file_path (Path): The path to the Markdown file.
-
-        Returns:
-            Dict[str, Any]: The processed data of the file, including path, metadata, content, and stats.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.warning(f"File processing error: {str(e)}")
-            return {"path": str(file_path), "error": str(e)}
-
-    def _read_file(self, file_path: Path) -> str:
-        """
-        Read a Markdown file and return its content.
-
-        Args:
-            file_path (Path): The path to the Markdown file.
-
-        Returns:
-            str: The content of the Markdown file.
-
-        Raises:
-            MarkdownProcessingError: If there is an error reading the file.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.error(f"File reading error: {str(e)}")
-            raise MarkdownProcessingError(str(e)) from e
-
-    def _extract_metadata(self, content: str) -> Dict[str, Any]:
-        """
-        Extract metadata from Markdown content.
-
-        Args:
-            content (str): The content of the Markdown file.
-
-        Returns:
-            Dict[str, Any]: The extracted metadata.
-
-        Raises:
-            MarkdownProcessingError: If there is an error extracting metadata.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.error(f"Metadata extraction error: {str(e)}")
-            raise MarkdownProcessingError(str(e)) from e
-
-    def _normalize_content(self, content: str) -> str:
-        """
-        Normalize Markdown content.
-
-        Args:
-            content (str): The content of the Markdown file.
-
-        Returns:
-            str: The normalized content.
-
-        Raises:
-            MarkdownProcessingError: If there is an error normalizing the content.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.error(f"Content normalization error: {str(e)}")
-            raise MarkdownProcessingError(str(e)) from e
-
-    def _compute_stats(self, content: str) -> Dict[str, Any]:
-        """
-        Compute statistics from Markdown content.
-
-        Args:
-            content (str): The content of the Markdown file.
-
-        Returns:
-            Dict[str, Any]: The computed statistics.
-
-        Raises:
-            MarkdownProcessingError: If there is an error computing statistics.
-        """
-        try:
-            pass
-        except Exception as e:
-            self.logger.error(f"Stats computation error: {str(e)}")
-            raise MarkdownProcessingError(str(e)) from e
 
     def _aggregate_enhanced_results(
         self, results: List[Dict[str, Any]]

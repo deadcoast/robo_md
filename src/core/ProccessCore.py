@@ -1,29 +1,47 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Iterator as TypingIterator, TypeVar, Generic
 from types import TracebackType
+from typing import (
+    Any,
+    Dict,
+    Generic,
+)
+from typing import Iterator as TypingIterator
+from typing import (
+    List,
+    Optional,
+    TypeVar,
+)
+
+from src.AnalysisInitializer import AnalysisInitializer  # type: ignore
 
 # Add type annotations as comments for modules missing py.typed markers
 from src.AnalyzerCore import ResultAnalyzer  # type: ignore
-from src.ValidationCore import ValidationEngine  # type: ignore
-from src.MetricsCore import MetricsComputer  # type: ignore
-from src.AnalysisInitializer import AnalysisInitializer  # type: ignore
 from src.ExecutionCore import ExecutionCore  # type: ignore
+from src.MetricsCore import MetricsComputer  # type: ignore
 from src.ResultCompiler import ResultCompiler  # type: ignore
+from src.ValidationCore import ValidationEngine  # type: ignore
 from src.ValidationData import ValidationData  # type: ignore
+
 
 class ProcessingConfig:
     def __init__(self, config):
         self.config = config
 
+
 class ProcessingContext:
     def __init__(self, config: ProcessingConfig):
         self.config = config
         self.context: Dict[str, Any] = {}
-    def __enter__(self) -> 'ProcessingContext':
+
+    def __enter__(self) -> "ProcessingContext":
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_val: Optional[Exception],
-                exc_tb: Optional[TracebackType]) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[Exception],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         pass
 
     def get(self, key: str) -> Optional[Any]:
@@ -31,6 +49,7 @@ class ProcessingContext:
 
     def set(self, key: str, value: Any) -> None:
         self.context[key] = value
+
 
 class ProcessingError(Exception):
     """Exception raised for errors during processing operations."""
@@ -72,6 +91,7 @@ class ProcessingError(Exception):
 @dataclass
 class ValidationStatus:
     """Represents the validation status of a processing operation."""
+
     is_valid: bool
     validation_score: float
     issues: List[str] = field(default_factory=list)
@@ -80,10 +100,12 @@ class ValidationStatus:
 @dataclass
 class ExecutionResult:
     """Represents the result of an execution operation."""
+
     success: bool
     metrics: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
     error: Optional[str] = None
+
 
 @dataclass
 class ProcessingStatus:
@@ -94,16 +116,19 @@ class ProcessingStatus:
     error_log: List[ProcessingError] = field(default_factory=list)
     context: Dict[str, Any] = field(default_factory=dict)
 
-T = TypeVar('T')
+
+T = TypeVar("T")
+
 
 class DictIterator(Generic[T]):
     """Custom iterator for dictionary keys"""
+
     def __init__(self, context: Dict[str, T]):
         self.context = context
         self.keys = list(context.keys())
         self.index = 0
 
-    def __iter__(self) -> 'DictIterator[T]':
+    def __iter__(self) -> "DictIterator[T]":
         return self
 
     def __next__(self) -> str:
@@ -124,26 +149,40 @@ class ProcessingResult:
 
     _extended_summary_
     """
+
     def __init__(self, result: Any):
         self.result = result
         self.status = ProcessingStatus(
             sequence_id="",
             processing_phase="",
             completion_metrics={},
-            validation_status=ValidationStatus(is_valid=False, validation_score=0.0)
+            validation_status=ValidationStatus(is_valid=False, validation_score=0.0),
         )
         self.error_log: List[ProcessingError] = []
         self.context: Dict[str, Any] = {}
 
     def __str__(self) -> str:
-        return str(self.result) + "\n" + str(self.status) + "\n" + str(self.error_log) + "\n" + str(self.context)
+        return (
+            str(self.result)
+            + "\n"
+            + str(self.status)
+            + "\n"
+            + str(self.error_log)
+            + "\n"
+            + str(self.context)
+        )
 
     def __repr__(self) -> str:
         return self.__str__()
 
     def __eq__(self, other) -> bool:
         if isinstance(other, ProcessingResult):
-            return self.result == other.result and self.status == other.status and self.error_log == other.error_log and self.context == other.context
+            return (
+                self.result == other.result
+                and self.status == other.status
+                and self.error_log == other.error_log
+                and self.context == other.context
+            )
         return False
 
     def __ne__(self, other) -> bool:
@@ -182,6 +221,7 @@ class ProcessingResult:
     def get_context(self) -> Dict[str, Any]:
         return self.context
 
+
 class ResultProcessor:
     def __init__(self, config: ProcessingConfig):
         self.analyzer = ResultAnalyzer()
@@ -195,7 +235,9 @@ class ResultProcessor:
 
         return self._compile_results(analysis, validation, metrics)
 
-    def _compile_results(self, analysis: Any, validation: Any, metrics: Any) -> ProcessingResult:
+    def _compile_results(
+        self, analysis: Any, validation: Any, metrics: Any
+    ) -> ProcessingResult:
         """Compile results from analysis, validation and metrics calculations."""
         # Implementation would depend on your specific requirements
         result = ProcessingResult(analysis)
@@ -212,7 +254,7 @@ class ProcessingEngine:
 
     def _compute_execution_status(self, result: Any) -> str:
         """Compute the execution status based on the result."""
-        if not hasattr(result, 'is_valid') or not result.is_valid:
+        if not hasattr(result, "is_valid") or not result.is_valid:
             return "FAILED"
         return "COMPLETED"
 
@@ -236,5 +278,3 @@ class ProcessingEngine:
 
         except ProcessingError as e:
             return ExecutionResult(success=False, error=str(e), status="FAILED")
-
-

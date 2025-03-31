@@ -2,11 +2,12 @@
 A class for managing resource allocation.
 """
 
+import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
-from config import SystemConfig
 from src.config.ResourceConfig import ResourceAllocation
+from src.config.SystemConfig import SystemConfig
 from src.config.TaskChainConfig import TaskChainConfig
 
 
@@ -16,15 +17,15 @@ class ResourceAllocator:
     Manages allocation of resources to different tasks or processes.
 
     Attributes:
+        config: System configuration
+        resource_registry: Dictionary mapping resource IDs to their registered amounts
         available_resources: Dictionary mapping resource IDs to their available amounts
         allocated_resources: Dictionary mapping resource IDs to their allocated amounts
         allocation_history: List of past allocations for auditing purposes
     """
 
-    resource_id: str
-    amount: float
-    priority: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    config: SystemConfig
+    resource_registry: Dict[str, float] = field(default_factory=dict)
     available_resources: Dict[str, float] = field(default_factory=dict)
     allocated_resources: Dict[str, float] = field(default_factory=dict)
     allocation_history: List[ResourceAllocation] = field(default_factory=list)
@@ -55,9 +56,7 @@ class ResourceAllocator:
             self.allocated_resources[resource_id] = amount
 
         # Record this allocation
-        allocation = ResourceAllocation(
-            resource_id=resource_id, amount=amount, priority=priority
-        )
+        allocation = ResourceAllocation(resource_id, amount, priority)
         self.allocation_history.append(allocation)
 
         return True
@@ -125,9 +124,9 @@ class ResourceAllocator:
         else:
             self.available_resources[resource_id] = amount
 
-    def __init__(self, config: SystemConfig):
-        self.config = config
-        self.resource_registry = {}
+    def __post_init__(self):
+        """Set up logger after dataclass initialization"""
+        self.logger = logging.getLogger(__name__)
 
     def allocate_resources(self, task_chain: TaskChainConfig) -> Dict[str, float]:
         """
@@ -137,9 +136,14 @@ class ResourceAllocator:
             task_chain: The task chain configuration to allocate resources for
 
         Returns:
-            A dictionary of resource allocations
+            TaskChainConfig
         """
-        # Implementation would go here
+        self.logger.info(f"Allocating resources for task chain {task_chain}")
+        self.logger.info(f"Available resources: {self.available_resources}")
+        self.logger.info(f"Allocated resources: {self.allocated_resources}")
+        self.logger.info(f"Allocation history: {self.allocation_history}")
+        # TODO: Implementation would go here
+
         return {}
 
     def release_resources(self, task_chain: TaskChainConfig) -> None:
@@ -149,17 +153,33 @@ class ResourceAllocator:
         Args:
             task_chain: The task chain configuration to release resources for
         """
-        # Implementation would go here
+        self.logger.info(f"Releasing resources for task chain {task_chain}")
+        self.logger.info(f"Available resources: {self.available_resources}")
+        self.logger.info(f"Allocated resources: {self.allocated_resources}")
+        self.logger.info(f"Allocation history: {self.allocation_history}")
+        # TODO: Implementation would go here
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the object.
+        """
         return f"ResourceAllocator(config={self.config}, resource_registry={self.resource_registry})"
 
-    def __reduce__(self) -> tuple:
+    def __reduce__(self) -> Tuple:
+        """
+        Returns a tuple that can be used to recreate the object.
+        """
         return (ResourceAllocator, (self.config, self.resource_registry))
 
-    def __getstate__(self) -> Dict[str, Any]:
-        return {"config": self.config, "resource_registry": self.resource_registry}
-
     def __setstate__(self, state: Dict[str, Any]):
+        """
+        Sets the state of the object from a dictionary.
+        """
         self.config = state["config"]
         self.resource_registry = state["resource_registry"]
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary that can be used to recreate the object.
+        """
+        return {"config": self.config, "resource_registry": self.resource_registry}

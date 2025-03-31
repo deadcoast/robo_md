@@ -404,6 +404,35 @@ class TaskRegistryManager:
             self.logger = logging.getLogger(__name__)
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    def _ensure_task_list_attribute(self, attr_name: str) -> List[Task]:
+        """
+        Ensure a task list attribute exists, initialize it if needed, and return sorted.
+
+        Args:
+            attr_name (str): The name of the task list attribute to ensure.
+
+        Returns:
+            List[Task]: The sorted task list.
+        """
+        # Ensure logger exists
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+
+        # Ensure attribute exists
+        if not hasattr(self, attr_name):
+            setattr(self, attr_name, [])
+
+        # Get the current value
+        task_list = getattr(self, attr_name)
+
+        # Sort by timestamp
+        sorted_list = sorted(task_list, key=lambda task: task.timestamp, reverse=False)
+
+        # Update the attribute with sorted list
+        setattr(self, attr_name, sorted_list)
+
+        return sorted_list
+
     def get_active_tasks(self) -> List[Task]:
         """
         Get the list of active tasks.
@@ -411,14 +440,7 @@ class TaskRegistryManager:
         Returns:
             List[Task]: The list of active tasks.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-        if not hasattr(self, "active_tasks"):
-            self.active_tasks = []
-        self.active_tasks = sorted(
-            self.active_tasks, key=lambda task: task.timestamp, reverse=False
-        )
-        return self.active_tasks
+        return self._ensure_task_list_attribute("active_tasks")
 
     def get_completion_log(self) -> List[Task]:
         """
@@ -427,14 +449,7 @@ class TaskRegistryManager:
         Returns:
             List[Task]: The list of completed tasks.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-        if not hasattr(self, "completion_log"):
-            self.completion_log = []
-        self.completion_log = sorted(
-            self.completion_log, key=lambda task: task.timestamp, reverse=False
-        )
-        return self.completion_log
+        return self._ensure_task_list_attribute("completion_log")
 
     def get_error_log(self) -> List[Dict[str, Any]]:
         """
@@ -487,6 +502,26 @@ class TaskRegistryManager:
         # Then check the task registry
         return self.task_registry.get(task_id, {}).get("status", "Unknown")
 
+    def _get_task_entries(
+        self, task_id: str, entry_type: str, log_message: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Helper method to get task entries of a specific type.
+
+        Args:
+            task_id (str): The ID of the task.
+            entry_type (str): The type of entries to retrieve ("log", "errors", etc.)
+            log_message (str): The log message to record.
+
+        Returns:
+            List[Dict[str, Any]]: The requested entries for the task.
+        """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+
+        self.logger.info(log_message)
+        return self.get_task_log_entries(task_id, entry_type)
+
     def get_task_log(self, task_id: str) -> List[Dict[str, Any]]:
         """
         Get the log of a task.
@@ -495,17 +530,12 @@ class TaskRegistryManager:
         information about the task's processing steps and events.
 
         Args:
-            self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
 
         Returns:
             List[Dict[str, Any]]: The log of the task.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-
-        self.logger.info(f"Getting log for task {task_id}")
-        return self.get_task_log_entries(task_id, "log")
+        return self._get_task_entries(task_id, "log", f"Getting log for task {task_id}")
 
     def get_task_errors(self, task_id: str) -> List[Dict[str, Any]]:
         """
@@ -515,17 +545,14 @@ class TaskRegistryManager:
         which may include exceptions, warnings, or other error conditions.
 
         Args:
-            self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
 
         Returns:
             List[Dict[str, Any]]: The errors of the task.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-
-        self.logger.info(f"Getting errors for task {task_id}")
-        return self.get_task_log_entries(task_id, "errors")
+        return self._get_task_entries(
+            task_id, "errors", f"Getting errors for task {task_id}"
+        )
 
     def get_task_log_entries(self, task_id: str, log_type: str) -> List[Dict[str, Any]]:
         """
@@ -558,6 +585,28 @@ class TaskRegistryManager:
 
         return entries
 
+    def _get_task_registry_item(
+        self, task_id: str, item_type: str, log_message: str
+    ) -> Dict[str, Any]:
+        """
+        Helper method to get a specific item from the task registry.
+
+        Args:
+            task_id (str): The ID of the task.
+            item_type (str): The type of registry item to retrieve ("metrics", "progress", etc.)
+            log_message (str): The log message to record.
+
+        Returns:
+            Dict[str, Any]: The requested registry item for the task.
+        """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+
+        self.logger.info(log_message)
+        return self.get_task_registry_data(task_id, item_type)
+
     def get_task_metrics(self, task_id: str) -> Dict[str, Any]:
         """
         Get the metrics of a task.
@@ -565,19 +614,14 @@ class TaskRegistryManager:
         Retrieves performance metrics and statistics for a specific task.
 
         Args:
-            self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
 
         Returns:
             Dict[str, Any]: The metrics of the task.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-        if not hasattr(self, "task_registry"):
-            self.task_registry = {}
-
-        self.logger.info(f"Getting metrics for task {task_id}")
-        return self.get_task_registry_data(task_id, "metrics")
+        return self._get_task_registry_item(
+            task_id, "metrics", f"Getting metrics for task {task_id}"
+        )
 
     def get_task_progress(self, task_id: str) -> Dict[str, Any]:
         """
@@ -587,19 +631,14 @@ class TaskRegistryManager:
         percentage complete, current step, and time information.
 
         Args:
-            self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
 
         Returns:
             Dict[str, Any]: The progress of the task.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-        if not hasattr(self, "task_registry"):
-            self.task_registry = {}
-
-        self.logger.info(f"Getting progress for task {task_id}")
-        return self.get_task_registry_data(task_id, "progress")
+        return self._get_task_registry_item(
+            task_id, "progress", f"Getting progress for task {task_id}"
+        )
 
     def get_task_registry_data(self, task_id: str, data_key: str) -> Dict[str, Any]:
         """
@@ -631,6 +670,28 @@ class TaskRegistryManager:
 
         return data
 
+    def _get_task_attr(
+        self, task_id: str, attr_name: str, log_prefix: str, default_value: Any
+    ) -> Any:
+        """
+        Helper method to get a specific attribute from a task.
+
+        Args:
+            task_id (str): The ID of the task.
+            attr_name (str): The name of the attribute to retrieve.
+            log_prefix (str): The prefix for the log message.
+            default_value (Any): The default value to return if the attribute doesn't exist.
+
+        Returns:
+            Any: The value of the task attribute, or the default value if not found.
+        """
+        if not hasattr(self, "logger"):
+            self.logger = logging.getLogger(__name__)
+        if not hasattr(self, "task_registry"):
+            self.task_registry = {}
+
+        return self.get_task_attribute(log_prefix, task_id, attr_name, default_value)
+
     def get_task_type(self, task_id: str) -> str:
         """
         Get the type of a task.
@@ -638,19 +699,13 @@ class TaskRegistryManager:
         Retrieves the type classification of a specific task.
 
         Args:
-            self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
 
         Returns:
             str: The type of the task.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-        if not hasattr(self, "task_registry"):
-            self.task_registry = {}
-
-        return self.get_task_attribute(
-            "Getting task type for task ", task_id, "type", "Unknown"
+        return self._get_task_attr(
+            task_id, "type", "Getting task type for task ", "Unknown"
         )
 
     def get_task_weight(self, task_id: str) -> float:
@@ -661,19 +716,13 @@ class TaskRegistryManager:
         Higher weights typically indicate higher priority tasks.
 
         Args:
-            self: The instance of the TaskRegistryManager.
             task_id (str): The ID of the task.
 
         Returns:
             float: The weight of the task.
         """
-        if not hasattr(self, "logger"):
-            self.logger = logging.getLogger(__name__)
-        if not hasattr(self, "task_registry"):
-            self.task_registry = {}
-
-        return self.get_task_attribute(
-            "Getting task weight for task ", task_id, "weight", 0.0
+        return self._get_task_attr(
+            task_id, "weight", "Getting task weight for task ", 0.0
         )
 
     def get_task_attribute(

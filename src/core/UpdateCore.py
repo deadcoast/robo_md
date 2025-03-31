@@ -1,3 +1,7 @@
+"""
+A class for tracking the progress of updates.
+"""
+
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List
 
@@ -49,7 +53,11 @@ class UpdateTracker:
         """
 
         def __init__(self, verification_steps: List[Callable] = None):
-            self.verification_steps: List[Callable] = verification_steps or []
+            if verification_steps is None:
+                verification_steps = None
+            if verification_steps is None:
+                verification_steps = []
+            self.verification_steps: List[Callable] = verification_steps
 
         async def verify_update(self, component: str, update_result: Any) -> bool:
             verification_result = await self._run_verification(component, update_result)
@@ -78,10 +86,27 @@ class UpdateTracker:
             )
 
         def add_verification_step(self, step: Callable) -> None:
-            self.verification_steps.append(step)
+            """
+            Adds a verification step to the verification steps list.
+
+            Args:
+                step (Callable): The verification step to add.
+            """
+            # TODO: Add support for other attributes
+            # Check if the step is already in the list
+            if step not in self.verification_steps:
+                self.verification_steps.append(step)
 
         def remove_verification_step(self, step: Callable) -> None:
-            self.verification_steps.remove(step)
+            """
+            Removes a verification step from the verification steps list.
+
+            Args:
+                step (Callable): The verification step to remove.
+            """
+            # TODO: Add support for other attributes
+            if step in self.verification_steps:
+                self.verification_steps.remove(step)
 
         def __copy__(self) -> "UpdateTracker.UpdateVerification":
             """
@@ -90,6 +115,7 @@ class UpdateTracker:
             Returns:
                 UpdateTracker.UpdateVerification: A shallow copy of the UpdateVerification object.
             """
+            # TODO: Add support for other attributes
             return UpdateTracker.UpdateVerification(self.verification_steps.copy())
 
         def __deepcopy__(self, memo: Dict) -> "UpdateTracker.UpdateVerification":
@@ -102,6 +128,8 @@ class UpdateTracker:
             Returns:
                 UpdateTracker.UpdateVerification: A deep copy of the UpdateVerification object.
             """
+            # TODO: Add support for other attributes
+            # Create a deep copy of the verification steps list
             return UpdateTracker.UpdateVerification(self.verification_steps.copy())
 
         def __reduce__(self):
@@ -111,6 +139,8 @@ class UpdateTracker:
             Returns:
                 tuple: A tuple containing the class and arguments needed to recreate the object.
             """
+            # TODO: Add support for other attributes
+            # Return a tuple containing the class and arguments needed to recreate the object
             return (UpdateTracker.UpdateVerification, (self.verification_steps.copy()))
 
         def __getstate__(self) -> Dict:
@@ -120,6 +150,8 @@ class UpdateTracker:
             Returns:
                 dict: A dictionary containing the state of the object.
             """
+            # TODO: Add support for other attributes
+            # Return the state of the object
             return {"verification_steps": self.verification_steps}
 
         def __setstate__(self, state: Dict) -> None:
@@ -129,4 +161,9 @@ class UpdateTracker:
             Args:
                 state (dict): A dictionary containing the state of the object.
             """
-            self.verification_steps = state["verification_steps"]
+            # TODO: Add support for other attributes
+            # Set the verification steps list
+            if "verification_steps" not in state:
+                self.verification_steps = []
+            else:
+                self.verification_steps = state["verification_steps"]
